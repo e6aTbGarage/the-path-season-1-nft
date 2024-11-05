@@ -48,22 +48,23 @@ describe('EbatHero', () => {
     it('should increase counter', async () => {
         const increaseTimes = 3;
         for (let i = 0; i < increaseTimes; i++) {
-            console.log(`increase ${i + 1}/${increaseTimes}`);
+            // console.log(`increase ${i + 1}/${increaseTimes}`);
 
             const increaser = await blockchain.treasury('increaser' + i);
 
             const counterBefore = await ebatHero.getCounter();
 
-            console.log('counter before increasing', counterBefore);
+            // console.log('counter before increasing', counterBefore);
 
             const increaseBy = Math.floor(Math.random() * 100);
 
-            console.log('increasing by', increaseBy);
+            // console.log('increasing by', increaseBy);
 
             const increaseResult = await ebatHero.sendIncrease(increaser.getSender(), {
                 increaseBy,
                 value: toNano('0.05'),
             });
+            // console.log('Res: ', increaseResult)
 
             expect(increaseResult.transactions).toHaveTransaction({
                 from: increaser.address,
@@ -73,7 +74,7 @@ describe('EbatHero', () => {
 
             const counterAfter = await ebatHero.getCounter();
 
-            console.log('counter after increasing', counterAfter);
+            // console.log('counter after increasing', counterAfter);
 
             expect(counterAfter).toBe(counterBefore + increaseBy);
         }

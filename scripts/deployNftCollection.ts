@@ -7,8 +7,7 @@ export async function run(provider: NetworkProvider, royaltyParams: RoyaltyParam
         NftCollection.createFromConfig(
             {
                 ownerAddress: provider.sender().address!,
-                // nextItemIndex: number | BN
-                nextItemIndex: 1,
+                nextItemIndex: 0,
                 collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
                 commonContent: "",
                 nftItemCode: await compile('NftItem'),

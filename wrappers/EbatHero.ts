@@ -54,7 +54,7 @@ export class EbatHero implements Contract {
         });
     }
 
-    async getCounter(provider: ContractProvider) {
+    async getCounter(provider: ContractProvider): Promise<number> {
         const result = await provider.get('get_counter', []);
         return result.stack.readNumber();
     }
