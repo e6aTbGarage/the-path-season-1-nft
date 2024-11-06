@@ -54,7 +54,7 @@ export const Opcodes = {
     change_second_owner: 6,
 
     get_royalty_params: 0x693d3950,
-    report_royalty_params: 0xa8cb00ad,
+    get_royalty_params_response: 0xa8cb00ad,
 };
 
 export type CollectionMintNftItemInput = {
@@ -142,7 +142,7 @@ export class NftCollection implements Contract {
 
     async sendDeployNewNft(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number, passAmount: bigint, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
         let itemContent = beginCell()
-            .storeBuffer(Buffer.from(opts.itemContent))
+            .storeStringTail(opts.itemContent)
             .endCell()
 
         let nftItemMessage = beginCell()

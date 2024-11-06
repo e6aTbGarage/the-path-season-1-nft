@@ -36,7 +36,6 @@ describe('NftCollection', () => {
             },
         }
 
-
         collection = blockchain.openContract( NftCollection.createFromConfig(config, code));
 
         const deployResult = await collection.sendDeploy(deployer.getSender(), toNano('0.05'));
@@ -148,8 +147,12 @@ describe('NftCollection', () => {
             initData: itemData,
             success: true,
         });
+
+        let data = await collection.getCollectionData()
+        expect(data.nextItemId).toEqual(itemIndex + 1)
     })
 
+    // no sbt in this collection
     // it('should deploy new sbt', async () => {
     //     let itemIndex = 1
 
@@ -325,11 +328,11 @@ describe('NftCollection', () => {
             from: collection.address,
             to: anybody.address,
             success: true,
-            op: Opcodes.report_royalty_params,
+            op: Opcodes.get_royalty_params_response,
             value: (x) => (x ? toNano('0.99') <= x && x <= toNano('1') : false),
 
             body: beginCell()
-                .storeUint(Opcodes.report_royalty_params, 32)
+                .storeUint(Opcodes.get_royalty_params_response, 32)
                 .storeUint(requestQueryId, 64)
                 .storeSlice(
                     beginCell()
@@ -342,7 +345,7 @@ describe('NftCollection', () => {
                 .endCell(),
         });
 
-        let tx = flattenTransaction(findTransactionRequired(res.transactions, { op: Opcodes.report_royalty_params }))
+        let tx = flattenTransaction(findTransactionRequired(res.transactions, { op: Opcodes.get_royalty_params_response }))
         let response = tx.body?.beginParse()!
 
         let op = response.loadUint(32)
@@ -351,7 +354,7 @@ describe('NftCollection', () => {
         let royaltyBase = response.loadUint(16)
         let royaltyAddress = response.loadAddress()!
 
-        expect(op).toEqual(Opcodes.report_royalty_params)
+        expect(op).toEqual(Opcodes.get_royalty_params_response)
         expect(queryId).toEqual(requestQueryId)
         expect(royaltyFactor).toEqual(config.royaltyParams.royaltyFactor)
         expect(royaltyBase).toEqual(config.royaltyParams.royaltyBase)
