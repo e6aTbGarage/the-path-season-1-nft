@@ -29,5 +29,4 @@ export async function run(provider: NetworkProvider, royaltyParams: RoyaltyParam
     }
 
     console.log('data:', await collection.getCollectionData())
-    // console.log('data', Address.parse("0QDm9oyItkU9NNPLt5Lka8LFPfjRF6FZTg4MKw7k--okpZcc"))
 }

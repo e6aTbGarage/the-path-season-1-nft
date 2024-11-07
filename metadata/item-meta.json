@@ -3,5 +3,18 @@
     "description": "this is real pudge",
     "image": "https://s3.pathgame.app/public/nft/pudge.png",
     "content_url": "",
-    "attributes": [{ "trait_type": "sila", "value": "10/10" }]
- }
+    "attributes": [
+        {
+            "trait_type": "Talent",
+            "value": "100"
+        },
+        {
+            "trait_type": "Morale",
+            "value": "101"
+        },
+        {
+            "trait_type": "Power",
+            "value": "102"
+        }
+    ]
+}
