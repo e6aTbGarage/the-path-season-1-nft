@@ -6,42 +6,24 @@ import { compile } from '@ton/blueprint';
 import { findTransactionRequired, flattenTransaction, randomAddress } from '@ton/test-utils';
 import { NftItem, NftItemConfig, Opcodes } from '../wrappers/NftItem';
 
-describe('SbtItem (in-collection mode)', () => {
+describe('NftItem (in-collection mode)', () => {
     let code: Cell;
 
     let blockchain: Blockchain;
     let blockchainInitSnapshot: BlockchainSnapshot;
-    let deployer: SandboxContract<TreasuryContract>;
-    let authority_wallet: SandboxContract<TreasuryContract>;
-    let collection_wallet: SandboxContract<TreasuryContract>;
-    let editor_wallet: SandboxContract<TreasuryContract>;
+    let collection: SandboxContract<TreasuryContract>;
+    let owner: SandboxContract<TreasuryContract>;
     let token: SandboxContract<NftItem>;
     
-    let OWNER_ADDRESS: Address;
-    let AUTHORITY_ADDRESS: Address;
-    let COLLECTION_ADDRESS: Address;
-    let EDITOR_ADDRESS: Address;
-
     let config: NftItemConfig;
     let configMetadata: string;
     let custom_nft_fields: string[];
 
     beforeAll(async () => {
-        code = await compile('NftItem');
-
         blockchain = await Blockchain.create();
+        collection = await blockchain.treasury('pseudo-collection');
+        owner = await blockchain.treasury('owner');
 
-        deployer = await blockchain.treasury('deployer');
-        authority_wallet = await blockchain.treasury('authority');
-        collection_wallet = await blockchain.treasury('collection');
-        //editor_wallet = await blockchain.treasury('editor');
-        editor_wallet = deployer;
-
-        OWNER_ADDRESS = deployer.address;
-        AUTHORITY_ADDRESS = authority_wallet.address;
-        COLLECTION_ADDRESS = collection_wallet.address;
-        EDITOR_ADDRESS = editor_wallet.address;
-    
         configMetadata = ({
             "name": "@tg_nick_1",
             "stream": "2",
@@ -51,20 +33,20 @@ describe('SbtItem (in-collection mode)', () => {
 
         custom_nft_fields = ["stream"];
 
+        code = await compile('NftItem');
         config = {
             index: 777,
-            collectionAddress: randomAddress(),
-            ownerAddress: OWNER_ADDRESS,
-            // authorityAddress: AUTHORITY_ADDRESS,
-            content: configMetadata,
+            collectionAddress: collection.address,
         }
-        
-        token = blockchain.openContract(NftItem.createFromConfig(config, code));
 
-        const deployResult = await token.sendDeploy(deployer.getSender(), toNano('0.05'));
+        token = blockchain.openContract(NftItem.createFromConfig(config, code));
+        const deployResult = await token.sendDeploy(collection.getSender(), toNano('0.05'),{
+            ownerAddress: owner.address,
+            content: configMetadata,
+        });
   
         expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
+            from: collection.address,
             to: token.address,
             deploy: true,
             success: true,
@@ -82,81 +64,229 @@ describe('SbtItem (in-collection mode)', () => {
         // blockchain and sbt are ready to use
     });
 
-    // it('should ignore external messages', async () => {
-    //     try {
-    //         let res = await blockchain.sendMessage({
-    //             info: {
-    //                 type: 'external-in',
-    //                 dest: token.address,
-    //                 importFee: 0n,
-    //             },
-    //             init: undefined,
-    //             body: beginCell().endCell()
-    //         })
-    //         expect(res.transactions).toHaveTransaction({
-    //             to: token.address,
-    //             success: false,
-    //         });
-    //     } catch (e: any) {
-    //         expect(e.message).toContain('message not accepted');
-    //     }
-    // })
+    it('should deploy only from collection', async () => {
+        let anybody = await blockchain.treasury('anybody');
 
-    // it('should return item data', async () => {
-    //     let res = await token.getNftData()
-    //     expect(res.inited).toBe(true)
-    //     expect(res.index).toEqual(config.index)
-    //     expect(res.collectionAddress!.toString()).toEqual(config.collectionAddress!.toString())
-    //     expect(res.ownerAddress?.toString()).toEqual(config.ownerAddress!.toString())
-    //     expect(res.content).toEqual(configMetadata)
-    // })
+        let custom_config = {
+            index: 228,
+            collectionAddress: collection.address,
+        }
+        let custom_token = blockchain.openContract(NftItem.createFromConfig(custom_config, code));
+
+        const deployResult = await custom_token.sendDeploy(anybody.getSender(), toNano('0.05'),{
+            ownerAddress: owner.address,
+            content: configMetadata,
+        });
+  
+        expect(deployResult.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: custom_token.address,
+            deploy: true,
+            success: false,
+        });
+    });
+
+    it('should ignore external messages', async () => {
+        try {
+            let res = await blockchain.sendMessage({
+                info: {
+                    type: 'external-in',
+                    dest: token.address,
+                    importFee: 0n,
+                },
+                init: undefined,
+                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
+            })
+            expect(res.transactions).toHaveTransaction({
+                to: token.address,
+                success: false,
+            });
+        } catch (e: any) {
+            expect(e.message).toContain('message not accepted');
+        }
+    })
 
     // it('should return editor', async () => {
     //     let res = await token.getEditor();
     //     expect(res?.toString()).toEqual(EDITOR_ADDRESS.toString());
     // })
 
-    // it('should not transfer', async () => {
-    //     let newOwner = randomAddress()
-    //     let res = await deployer.send({
-    //         to: token.address,
-    //         value: toNano(1),
-    //         bounce: false,
-    //         body: Queries.transfer({
-    //                 newOwner,
-    //                 forwardAmount: toNano('0.01'),
-    //                 responseTo: randomAddress()
-    //         }).endCell()
-    //     })
+    it('should transfer', async () => {
+        let data = await token.getNftData()
+        expect(data.ownerAddress?.toString()).toEqual(owner.address.toString())
 
-    //     expect(res.transactions).toHaveTransaction({
-    //         from: deployer.address,
-    //         to: token.address,
-    //         success: false,
-    //         exitCode: 413
-    //     });
+        let newOwner = await blockchain.treasury('new_onwer');
+
+        let transferResult = await token.sendTransfer(owner.getSender(), toNano('1'), { newOwner: newOwner.address, })
+
+        expect(transferResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: token.address,
+            success: true,
+        });
+
+        expect((await token.getNftData()).ownerAddress?.toString()).toEqual(newOwner.address.toString())
+
+        // return back
+        await token.sendTransfer(newOwner.getSender(), toNano('1'), { newOwner: owner.address, })
+        expect((await token.getNftData()).ownerAddress?.toString()).toEqual(owner.address.toString())
+    })
+
+    it('should not transfer by anybody', async () => {
+        let anybody = await blockchain.treasury('anybody');
+        let newOwner = await blockchain.treasury('new_onwer');
+
+        let transferResult = await token.sendTransfer(anybody.getSender(), toNano('1'), { newOwner: newOwner.address, })
+
+        expect(transferResult.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: token.address,
+            success: false,
+            exitCode: 401,
+        });
+    })
+
+    it('should not transfer by collection', async () => {
+        let newOwner = await blockchain.treasury('new_onwer');
+
+        let transferResult = await token.sendTransfer(collection.getSender(), toNano('1'), { newOwner: newOwner.address, })
+
+        expect(transferResult.transactions).toHaveTransaction({
+            from: collection.address,
+            to: token.address,
+            success: false,
+            exitCode: 401,
+        });
+    })
+
+    it('should return data', async () => {
+        let res = await token.getNftData()
+        expect(res.inited).toBe(true)
+        expect(res.index).toEqual(config.index)
+        expect(res.collectionAddress!.toString()).toEqual(config.collectionAddress.toString())
+        expect(res.ownerAddress?.toString()).toEqual(owner.address.toString())
+        expect(res.content).toEqual(configMetadata)
+    })
+
+    // it('should return royalties', async () => {
+    //     let res = await token.getRoyaltyParams()
+
+    //     expect(royalties).not.toEqual(null)
+    //     expect(royalties!.royaltyBase).toEqual(singleConfig.royaltyParams.royaltyBase)
+    //     expect(royalties!.royaltyFactor).toEqual(singleConfig.royaltyParams.royaltyFactor)
+    //     expect(royalties!.royaltyAddress.toFriendly()).toEqual(singleConfig.royaltyParams.royaltyAddress.toFriendly())
     // })
 
-    // it('should not transfer by authority', async () => {
-    //     let newOwner = randomAddress()
-    //     let res = await authority_wallet.send({
-    //         to: token.address,
-    //         value: toNano(1),
-    //         bounce: false,
-    //         body: Queries.transfer({
-    //                 newOwner,
-    //                 forwardAmount: toNano('0.01'),
-    //                 responseTo: randomAddress()
-    //         }).endCell()
+    // it('should return static data', async () => {
+    //     let nft = await NftItemLocal.createSingle(singleConfig)
+    //     let res = await nft.sendGetStaticData(randomAddress())
+    //     if (res.type !== 'success') {
+    //         throw new Error()
+    //     }
+
+    //     let [responseMessage] = res.actionList as [SendMsgAction]
+    //     let response = responseMessage.message.body.beginParse()
+
+    //     let op = response.readUintNumber(32)
+    //     let queryId = response.readUintNumber(64)
+    //     let index = response.readUintNumber(256)
+    //     let collectionAddress = response.readAddress()
+
+    //     expect(op).toEqual(OperationCodes.getStaticDataResponse)
+    //     expect(queryId).toEqual(0)
+    //     expect(index).toEqual(0)
+    //     expect(collectionAddress).toEqual(null)
+    // })
+
+    // it('should send royalty params', async () => {
+    //     let nft = await NftItemLocal.createSingle(singleConfig)
+    //     let sender = randomAddress()
+    //     let res = await nft.sendGetRoyaltyParams(sender)
+
+    //     expect(res.exit_code).toBe(0)
+    //     if (res.type !== 'success') {
+    //         throw new Error()
+    //     }
+
+    //     let [responseMessage] = res.actionList as [SendMsgAction]
+
+    //     expect(responseMessage.message.info.dest!.toFriendly()).toEqual(sender.toFriendly())
+    //     let response = responseMessage.message.body.beginParse()
+
+    //     let op = response.readUintNumber(32)
+    //     let queryId = response.readUintNumber(64)
+    //     let royaltyFactor = response.readUintNumber(16)
+    //     let royaltyBase = response.readUintNumber(16)
+    //     let royaltyAddress = response.readAddress()!
+
+    //     expect(op).toEqual(OperationCodes.GetRoyaltyParamsResponse)
+    //     expect(queryId).toEqual(0)
+    //     expect(royaltyFactor).toEqual(singleConfig.royaltyParams.royaltyFactor)
+    //     expect(royaltyBase).toEqual(singleConfig.royaltyParams.royaltyBase)
+    //     expect(royaltyAddress.toFriendly()).toEqual(singleConfig.royaltyParams.royaltyAddress.toFriendly())
+    // })
+
+    // it('should edit content', async () => {
+    //     let nft = await NftItemLocal.createSingle(singleConfig)
+    //     let sender = randomAddress()
+
+    //     let royaltyAddress = randomAddress()
+    //     let res = await nft.sendEditContent(sender, {
+    //         content: 'new_content',
+    //         royaltyParams: {
+    //             royaltyFactor: 150,
+    //             royaltyBase: 220,
+    //             royaltyAddress
+    //         }
+    //     })
+    //     // should fail if sender is not owner
+    //     expect(res.exit_code).not.toEqual(0)
+
+    //     res = await nft.sendEditContent(EDITOR_ADDRESS, {
+    //         content: 'new_content',
+    //         royaltyParams: {
+    //             royaltyFactor: 150,
+    //             royaltyBase: 220,
+    //             royaltyAddress
+    //         }
     //     })
 
-    //     expect(res.transactions).toHaveTransaction({
-    //         from: authority_wallet.address,
-    //         to: token.address,
-    //         success: false,
-    //         exitCode: 413
-    //     });
+    //     expect(res.exit_code).toBe(0)
+    //     if (res.type !== 'success') {
+    //         throw new Error()
+    //     }
+
+    //     let data = await nft.getNftData()
+    //     if (!data.isInitialized) {
+    //         throw new Error()
+    //     }
+    //     expect(decodeOffChainContent(data.contentRaw)).toEqual('new_content')
+    //     let royalty = await nft.getRoyaltyParams()
+    //     expect(royalty).not.toEqual(null)
+    //     expect(royalty!.royaltyBase).toEqual(220)
+    //     expect(royalty!.royaltyFactor).toEqual(150)
+    //     expect(royalty!.royaltyAddress.toFriendly()).toEqual(royaltyAddress.toFriendly())
     // })
+
+    // it('should return editor address', async () => {
+    //     let nft = await NftItemLocal.createSingle(singleConfig)
+    //     let editor = await nft.getEditor()
+    //     expect(editor!.toFriendly()).toEqual(singleConfig.editorAddress.toFriendly())
+    // })
+
+    // it('should transfer editorship', async () => {
+    //     let nft = await NftItemLocal.createSingle(singleConfig)
+    //     let newEditor = randomAddress()
+    //     let res = await nft.sendTransferEditorship(EDITOR_ADDRESS, {
+    //         newEditor,
+    //         responseTo: null,
+    //     })
+    //     expect(res.exit_code).toEqual(0)
+    //     let editorRes = await nft.getEditor()
+    //     expect(editorRes!.toFriendly()).toEqual(newEditor.toFriendly())
+    // })
+
+
 
     // it('should destroy', async () => {
     //     let res = await token.sendDestoy(deployer.getSender(), {})

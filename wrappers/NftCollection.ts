@@ -1,4 +1,4 @@
-import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice } from '@ton/core';
+import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
 // import BN from 'bn.js'
 
 import {encodeOffChainContent, decodeOffChainContent} from "./NftContent";
@@ -140,7 +140,7 @@ export class NftCollection implements Contract {
     // Internal messages
     //
 
-    async sendDeployNewNft(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number, passAmount: bigint, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
+    async sendDeployNewNft(provider: ContractProvider, via: Sender, opts: { queryId?: number, passAmount: bigint, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
         let itemContent = beginCell()
             .storeStringTail(opts.itemContent)
             .endCell()
@@ -151,7 +151,7 @@ export class NftCollection implements Contract {
             .endCell()
 
         return await provider.internal(via, {
-            value,
+            value: toNano('1'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -164,7 +164,7 @@ export class NftCollection implements Contract {
         })
     }
     
-    async sendBatchDeployNft(provider: ContractProvider, via: Sender, value: bigint, params: { queryId?: number, items: CollectionMintNftItemInput[] }) {
+    async sendBatchDeployNft(provider: ContractProvider, via: Sender, params: { queryId?: number, items: CollectionMintNftItemInput[] }) {
         if (params.items.length > 250) {
             throw new Error('Too long list')
         }
@@ -205,7 +205,7 @@ export class NftCollection implements Contract {
             .endCell();
         
         return await provider.internal(via, {
-            value: value,
+            value: toNano('1'),
             body: beginCell()
                 .storeUint(Opcodes.batch_mint, 32)
                 .storeUint(params.queryId || 0, 64)
@@ -214,9 +214,9 @@ export class NftCollection implements Contract {
         })
     }
 
-    async sendChangeOwner(provider: ContractProvider, via: Sender, value: bigint, opts: { queryID?: number; newOwner: Address; }) {
+    async sendChangeOwner(provider: ContractProvider, via: Sender, opts: { queryID?: number; newOwner: Address; }) {
         return await provider.internal(via, {
-            value: value,
+            value: toNano('1'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -228,9 +228,9 @@ export class NftCollection implements Contract {
     }
 
     // another way to get royalty
-    async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number; }) {
+    async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, opts: { queryId?: number; }) {
         return await provider.internal(via, {
-            value: value,
+            value: toNano('1'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -240,7 +240,7 @@ export class NftCollection implements Contract {
         })
     }
 
-    async sendEditContent(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number, collectionContent: string, commonContent: string,  royaltyParams: RoyaltyParams  }) {
+    async sendEditContent(provider: ContractProvider, via: Sender, opts: { queryId?: number, collectionContent: string, commonContent: string,  royaltyParams: RoyaltyParams  }) {
         let royaltyCell = beginCell()
             .storeUint(opts.royaltyParams.royaltyFactor, 16)
             .storeUint(opts.royaltyParams.royaltyBase, 16)
@@ -257,7 +257,7 @@ export class NftCollection implements Contract {
             .endCell()
 
         return await provider.internal(via, {
-            value: value,
+            value: toNano('1'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()

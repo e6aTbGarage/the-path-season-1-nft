@@ -9,7 +9,7 @@ export async function run(provider: NetworkProvider, royaltyParams: RoyaltyParam
                 ownerAddress: provider.sender().address!,
                 nextItemIndex: 0,
                 collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
-                commonContent: "",
+                commonContent: "https://s3.pathgame.app/",
                 nftItemCode: await compile('NftItem'),
                 royaltyParams: {
                     royaltyFactor: 10,

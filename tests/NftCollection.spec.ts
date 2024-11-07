@@ -68,7 +68,7 @@ describe('NftCollection', () => {
                     importFee: 0n,
                 },
                 init: undefined,
-                body: Cell.EMPTY,
+                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
             })
             expect(res.transactions).toHaveTransaction({
                 to: collection.address,
@@ -90,14 +90,6 @@ describe('NftCollection', () => {
     it('should return nft content', async () => {
         let res = await collection.getNftContent(0, Cell.EMPTY);
         expect(res).toEqual(config.commonContent)
-
-        // let personalNftContent = beginCell()
-        //     .storeStringTail('personal')
-        //     .endCell();
-        // let res2 = await collection.getNftContent(0, personalNftContent);
-        // let resContent = decodeOnChainContent(res2);
-        // expect(resContent.description).toEqual("Diploma for the student: Stanislav Povolotsky")
-        // expect(resContent.image_data).toEqual(imageDataSbt)
     })
     
     it('should return nft address by index', async () => {
@@ -127,7 +119,7 @@ describe('NftCollection', () => {
     it('should deploy new nft', async () => {
         let itemIndex = 0
 
-        let res = await collection.sendDeployNewNft(deployer.getSender(), toNano('1'), {
+        let res = await collection.sendDeployNewNft(deployer.getSender(), {
             passAmount: toNano('0.5'),
             itemIndex,
             itemOwnerAddress: config.ownerAddress,
@@ -152,33 +144,6 @@ describe('NftCollection', () => {
         expect(data.nextItemId).toEqual(itemIndex + 1)
     })
 
-    // no sbt in this collection
-    // it('should deploy new sbt', async () => {
-    //     let itemIndex = 1
-
-    //     let res = await collection.sendDeployNewSbt(deployer.getSender(), toNano('1'), {
-    //         passAmount: toNano('0.5'),
-    //         itemIndex,
-    //         itemOwnerAddress: config.ownerAddress,
-    //         itemContent: 'custom',
-    //         itemAuthority: authority.address,
-    //     })
-
-    //     // Basic nft item data
-    //     let itemData = beginCell()
-    //         .storeUint(itemIndex, 64)
-    //         .storeAddress(collection.address)
-    //         .endCell()
-
-    //     expect(res.transactions).toHaveTransaction({
-    //         from: collection.address,
-    //         deploy: true,
-    //         initCode: config.nftItemCode,
-    //         initData: itemData,
-    //         success: true,
-    //     });
-    // })
-    
     it('should batch deploy nft\'s', async () => {
         let items: CollectionMintNftItemInput[] = [
             {
@@ -195,9 +160,7 @@ describe('NftCollection', () => {
             },
         ]
 
-        let res = await collection.sendBatchDeployNft(deployer.getSender(), toNano('1'), {
-            items
-        })
+        let res = await collection.sendBatchDeployNft(deployer.getSender(), { items })
 
         let nftItemData1 = beginCell()
             .storeUint(0, 64)
@@ -226,59 +189,10 @@ describe('NftCollection', () => {
         });
     })
 
-    // it('should batch deploy sbt\'s', async () => {
-    //     let items: CollectionMintSbtItemInput[] = [
-    //         {
-    //             passAmount: toNano('0.5'),
-    //             index: 0,
-    //             ownerAddress: randomAddress(),
-    //             authorityAddress: randomAddress(),
-    //             content: 'content_one'
-    //         },
-    //         {
-    //             passAmount: toNano('0.5'),
-    //             index: 1,
-    //             ownerAddress: randomAddress(),
-    //             authorityAddress: randomAddress(),
-    //             content: 'content_two'
-    //         },
-    //     ]
-
-    //     let res = await collection.sendBatchDeploySbt(deployer.getSender(), toNano('1'), {
-    //         items
-    //     })
-
-    //     let itemData1 = beginCell()
-    //         .storeUint(0, 64)
-    //         .storeAddress(collection.address)
-    //         .endCell()
-
-    //     expect(res.transactions).toHaveTransaction({
-    //         from: collection.address,
-    //         deploy: true,
-    //         initCode: config.nftItemCode,
-    //         initData: itemData1,
-    //         success: true,
-    //     });
-
-    //     let itemData2 = beginCell()
-    //         .storeUint(1, 64)
-    //         .storeAddress(collection.address)
-    //         .endCell()
-
-    //     expect(res.transactions).toHaveTransaction({
-    //         from: collection.address,
-    //         deploy: true,
-    //         initCode: config.nftItemCode,
-    //         initData: itemData2,
-    //         success: true,
-    //     });
-    // })
-    
     it('should deploy nft only if owner calls', async () => {
         let itemIndex = 1
 
-        let res = await collection.sendDeployNewNft(anybody.getSender(), toNano('1'), {
+        let res = await collection.sendDeployNewNft(anybody.getSender(), {
             passAmount: toNano('0.5'),
             itemIndex,
             itemOwnerAddress: config.ownerAddress,
@@ -296,7 +210,7 @@ describe('NftCollection', () => {
     it('should change owner', async () => {
         let newOwner = randomAddress()
 
-        let res = await collection.sendChangeOwner(anybody.getSender(), toNano('1'), { newOwner})
+        let res = await collection.sendChangeOwner(anybody.getSender(), { newOwner })
         // Should fail if caller is not owner
         expect(res.transactions).toHaveTransaction({
             from: anybody.address,
@@ -305,7 +219,7 @@ describe('NftCollection', () => {
             exitCode: 401
         });
 
-        res = await collection.sendChangeOwner(deployer.getSender(), toNano('1'), { newOwner})
+        res = await collection.sendChangeOwner(deployer.getSender(), { newOwner })
         expect(res.transactions).toHaveTransaction({
             from: deployer.address,
             to: collection.address,
@@ -318,7 +232,7 @@ describe('NftCollection', () => {
 
     it('should send royalty params', async () => {
         const requestQueryId = 1234567;
-        let res = await collection.sendGetRoyaltyParams(anybody.getSender(), toNano('1'), { queryId: requestQueryId})
+        let res = await collection.sendGetRoyaltyParams(anybody.getSender(), { queryId: requestQueryId })
         expect(res.transactions).toHaveTransaction({
             from: anybody.address,
             to: collection.address,
@@ -373,7 +287,7 @@ describe('NftCollection', () => {
             }
         }
 
-        let res = await collection.sendEditContent(anybody.getSender(), toNano('1'), newConfig)
+        let res = await collection.sendEditContent(anybody.getSender(), newConfig)
         // should fail if sender is not owner
         expect(res.transactions).toHaveTransaction({
             from: anybody.address,
@@ -382,7 +296,7 @@ describe('NftCollection', () => {
             exitCode: 401
         });
 
-        res = await collection.sendEditContent(deployer.getSender(), toNano('1'), newConfig)
+        res = await collection.sendEditContent(deployer.getSender(), newConfig)
         expect(res.transactions).toHaveTransaction({
             from: deployer.address,
             to: collection.address,
@@ -401,53 +315,80 @@ describe('NftCollection', () => {
         expect(royalty.royaltyAddress.toString()).toEqual(royaltyAddress.toString())
     })
 
+    // no sbt in this collection
 
-    // it('should ignore external messages', async () => {
-    //     deployer.getSender().send
+    // it('should deploy new sbt', async () => {
+    //     let itemIndex = 1
 
-    //     let res = await collection.contract.sendExternalMessage(new ExternalMessage({
-    //         to: collection.address,
-    //         from: OWNER_ADDRESS,
-    //         body: new CommonMessageInfo({
-    //             body: new CellMessage(new Cell())
-    //         })
-    //     }))
+    //     let res = await collection.sendDeployNewSbt(deployer.getSender(), toNano('1'), {
+    //         passAmount: toNano('0.5'),
+    //         itemIndex,
+    //         itemOwnerAddress: config.ownerAddress,
+    //         itemContent: 'custom',
+    //         itemAuthority: authority.address,
+    //     })
 
-    //     expect(res.exit_code).not.toEqual(0)
+    //     // Basic nft item data
+    //     let itemData = beginCell()
+    //         .storeUint(itemIndex, 64)
+    //         .storeAddress(collection.address)
+    //         .endCell()
+
+    //     expect(res.transactions).toHaveTransaction({
+    //         from: collection.address,
+    //         deploy: true,
+    //         initCode: config.nftItemCode,
+    //         initData: itemData,
+    //         success: true,
+    //     });
     // })
+    
+    // it('should batch deploy sbt\'s', async () => {
+    //     let items: CollectionMintSbtItemInput[] = [
+    //         {
+    //             passAmount: toNano('0.5'),
+    //             index: 0,
+    //             ownerAddress: randomAddress(),
+    //             authorityAddress: randomAddress(),
+    //             content: 'content_one'
+    //         },
+    //         {
+    //             passAmount: toNano('0.5'),
+    //             index: 1,
+    //             ownerAddress: randomAddress(),
+    //             authorityAddress: randomAddress(),
+    //             content: 'content_two'
+    //         },
+    //     ]
 
+    //     let res = await collection.sendBatchDeploySbt(deployer.getSender(), toNano('1'), {
+    //         items
+    //     })
 
-    // it('should increase counter', async () => {
-    //     const increaseTimes = 3;
-    //     for (let i = 0; i < increaseTimes; i++) {
-    //         console.log(`increase ${i + 1}/${increaseTimes}`);
+    //     let itemData1 = beginCell()
+    //         .storeUint(0, 64)
+    //         .storeAddress(collection.address)
+    //         .endCell()
 
-    //         const increaser = await blockchain.treasury('increaser' + i);
+    //     expect(res.transactions).toHaveTransaction({
+    //         from: collection.address,
+    //         deploy: true,
+    //         initCode: config.nftItemCode,
+    //         initData: itemData1,
+    //         success: true,
+    //     });
 
-    //         const counterBefore = await collection.getCounter();
+    //     let itemData2 = beginCell()
+    //         .storeUint(1, 64)
+    //         .storeAddress(collection.address)
+    //         .endCell()
 
-    //         console.log('counter before increasing', counterBefore);
-
-    //         const increaseBy = Math.floor(Math.random() * 100);
-
-    //         console.log('increasing by', increaseBy);
-
-    //         const increaseResult = await collection.sendIncrease(increaser.getSender(), {
-    //             increaseBy,
-    //             value: toNano('0.05'),
-    //         });
-
-    //         expect(increaseResult.transactions).toHaveTransaction({
-    //             from: increaser.address,
-    //             to: collection.address,
-    //             success: true,
-    //         });
-
-    //         const counterAfter = await collection.getCounter();
-
-    //         console.log('counter after increasing', counterAfter);
-
-    //         expect(counterAfter).toBe(counterBefore + increaseBy);
-    //     }
-    // });
+    //     expect(res.transactions).toHaveTransaction({
+    //         from: collection.address,
+    //         deploy: true,
+    //         initCode: config.nftItemCode,
+    //         initData: itemData2,
+    //         success: true,
+    //     });
+    // })
 });

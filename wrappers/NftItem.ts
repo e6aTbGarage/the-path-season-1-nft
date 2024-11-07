@@ -3,9 +3,7 @@ import { decodeOffChainContent, encodeOffChainContent } from './NftContent';
 
 export type NftItemConfig = {
     index: number
-    collectionAddress: Address | null
-    ownerAddress: Address
-    content: string
+    collectionAddress: Address
 }
 
 export type NftItemData = {
@@ -13,20 +11,13 @@ export type NftItemData = {
     index: number
     collectionAddress: Address | null
     ownerAddress: Address | null
-    content: string
-    // content: Cell | string
+    content: string // Cell | string
 }
 
 export function nftItemConfigToCell(config: NftItemConfig) {
-    let contentCell = beginCell()
-        .storeStringTail(config.content)
-        .endCell()
-
     return beginCell()
         .storeUint(config.index, 64)
         .storeAddress(config.collectionAddress)
-        .storeAddress(config.ownerAddress)
-        .storeRef(contentCell)
         .endCell()
 }
 
@@ -38,15 +29,6 @@ export const Opcodes = {
     get_royalty_params_response: 0xa8cb00ad,
     edit_content: 0x1a0b9d51,
     transfer_editorship: 0x1c04412a
-}
-
-export function buildNftItemDeployMessage(conf: { queryId?: number, collectionAddress: Address, passAmount: bigint, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
-    // let msgBody = CollectionQueries.mint(conf)
-
-    // return {
-    //     messageBody: msgBody,
-    //     collectionAddress: conf.collectionAddress
-    // }
 }
 
 export type RoyaltyParams = {
@@ -65,7 +47,6 @@ export type NftSingleData = {
 }
 
 export function nftSingleDataToCell(data: NftSingleData) {
-
     let contentCell = encodeOffChainContent(data.content)
 
     let royaltyCell = beginCell()
@@ -82,26 +63,6 @@ export function nftSingleDataToCell(data: NftSingleData) {
         .endCell()
 
 }
-
-// export function buildSingleNftStateInit(conf: NftSingleData) {
-//     let dataCell = nftSingleDataToCell(conf)
-
-//     let stateInit = new StateInit({
-//         code: NftSingleCodeCell,
-//         data: dataCell
-//     })
-
-//     let stateInitCell = new Cell()
-//     stateInit.writeTo(stateInitCell)
-
-//     let address = contractAddress({workchain: 0, initialCode: NftSingleCodeCell, initialData: dataCell})
-
-//     return {
-//         stateInit: stateInitCell,
-//         stateInitMessage: stateInit,
-//         address
-//     }
-// }
 
 export class NftItem implements Contract {
     constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
@@ -122,11 +83,14 @@ export class NftItem implements Contract {
         return new NftItem(contractAddress(workchain, init), init);
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
+    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint, opts: { ownerAddress: Address, content: string }) {
         return await provider.internal(via, {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().endCell(),
+            body: beginCell()
+                .storeAddress(opts.ownerAddress)
+                .storeRef(encodeOffChainContent(opts.content))
+                .endCell(),
         });
     }
 
@@ -145,6 +109,67 @@ export class NftItem implements Contract {
             content: decodeOffChainContent(nftData.readCell()),
         }        
     }
+
+    async getRoyaltyParams(provider: ContractProvider): Promise<RoyaltyParams | null> {
+        const nftRoyalty = (await provider.get('royalty_params', [])).stack
+
+        let [royaltyFactor, royaltyBase, royaltyAddress] = [nftRoyalty.readNumber(), nftRoyalty.readNumber(), nftRoyalty.readAddress() ]
+
+        return {
+            royaltyFactor: royaltyFactor,
+            royaltyBase: royaltyBase,
+            royaltyAddress: royaltyAddress,
+        }
+    }
+
+    //
+    //  Internal messages
+    //
+
+    async sendTransfer(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number; newOwner: Address; responseTo?: Address; forwardAmount?: bigint, forwardPayload?: Cell }) {
+        return await provider.internal(via, {
+            value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.transfer, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeAddress(opts.newOwner)
+                .storeAddress(opts.responseTo || null)
+                .storeBit(false) // no custom payload
+                .storeCoins(opts.forwardAmount || 0)
+                .storeRef(opts.forwardPayload || Cell.EMPTY)
+                .endCell(),
+        });
+    }
+
+    async sendGetStaticData(provider: ContractProvider, via: Sender, opts: { queryId?: number }) {
+        return await provider.internal(via, {
+            value: toNano('0.05'),
+            body: beginCell()
+                .storeUint(Opcodes.get_static_data, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell()
+        })
+    }
+    
+    async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, opts: { queryId?: number }) {
+        return await provider.internal(via, {
+            value: toNano('0.05'),
+            body: beginCell()
+                .storeUint(Opcodes.get_royalty_params, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell()
+        })
+    }
+
+    //
+    //  Unused messages
+    //
+
+    // async getEditor(provider: ContractProvider): Promise<Address | null> {
+    //     const nftEditor = (await provider.get('get_editor', [])).stack
+    //     return nftEditor.readAddress()
+    // }
 
     // async getSbtData(provider: ContractProvider): Promise<NftItemData> {
     //     return await this.getNftData(provider)
@@ -172,28 +197,23 @@ export class NftItem implements Contract {
     //     return res.stack.readAddressOpt()
     // }
 
-    //
-    //  Internal messages
-    //
-
-    // async sendTransfer(provider: ContractProvider, via: Sender, to: Address) {
-    //     throw new Error('Not implemented for SBT')
-    // }
-
-    // async sendGetStaticData(provider: ContractProvider, via: Sender) {
-    //     let msgBody = Queries.getStaticData({})
-
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: msgBody
-    //     })
-    // }
-
     // async sendEditContent(provider: ContractProvider, via: Sender, params: { queryId?: number, content: Cell}) {
-    //     let msgBody = Queries.editContent(params)
+    //     let contentCell = encodeOffChainContent(params.content)
+
+    //     let royaltyCell = beginCell()
+    //         .storeUint(params.royaltyParams.royaltyFactor, 16)
+    //         .storeUint(params.royaltyParams.royaltyBase, 16)
+    //         .storeAddress(params.royaltyParams.royaltyAddress)
+    //         .endCell()
+
     //     return await provider.internal(via, {
     //         value: toNano('0.05'),
-    //         body: msgBody
+    //         body: beginCell()
+    //         .storeUint(Opcodes.edit_content, 32)
+    //         .storeUint(params.queryId || 0, 64)
+    //         .storeRef(contentCell)
+    //         .storeRef(royaltyCell)
+    //         .endCell()
     //     })
     // }
 
