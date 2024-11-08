@@ -11,7 +11,7 @@ export type NftItemData = {
     index: number
     collectionAddress: Address | null
     ownerAddress: Address | null
-    content: string // Cell | string
+    content: string // Cell | string - cell if onchain
 }
 
 export function nftItemConfigToCell(config: NftItemConfig) {
@@ -32,10 +32,8 @@ export const Opcodes = {
 }
 
 export type RoyaltyParams = {
-    // numerator
-    royaltyFactor: number
-    // denominator
-    royaltyBase: number
+    royaltyFactor: number // numerator
+    royaltyBase: number // denominator
     royaltyAddress: Address
 }
 

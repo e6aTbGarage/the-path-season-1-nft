@@ -3,8 +3,7 @@ import {Cell, toNano, Address, beginCell} from '@ton/core';
 import "@ton/test-utils";
 
 import { compile } from '@ton/blueprint';
-import { findTransactionRequired, flattenTransaction, randomAddress } from '@ton/test-utils';
-import { NftItem, NftItemConfig, Opcodes } from '../wrappers/NftItem';
+import { NftItem, NftItemConfig } from '../wrappers/NftItem';
 
 describe('NftItem (in-collection mode)', () => {
     let code: Cell;
@@ -12,6 +11,7 @@ describe('NftItem (in-collection mode)', () => {
     let blockchain: Blockchain;
     let blockchainInitSnapshot: BlockchainSnapshot;
     let collection: SandboxContract<TreasuryContract>;
+    let anybody: SandboxContract<TreasuryContract>;
     let owner: SandboxContract<TreasuryContract>;
     let token: SandboxContract<NftItem>;
     
@@ -22,6 +22,7 @@ describe('NftItem (in-collection mode)', () => {
     beforeAll(async () => {
         blockchain = await Blockchain.create();
         collection = await blockchain.treasury('pseudo-collection');
+        anybody = await blockchain.treasury('anybody');
         owner = await blockchain.treasury('owner');
 
         configMetadata = ({
@@ -133,7 +134,6 @@ describe('NftItem (in-collection mode)', () => {
     })
 
     it('should not transfer by anybody', async () => {
-        let anybody = await blockchain.treasury('anybody');
         let newOwner = await blockchain.treasury('new_onwer');
 
         let transferResult = await token.sendTransfer(anybody.getSender(), toNano('1'), { newOwner: newOwner.address, })

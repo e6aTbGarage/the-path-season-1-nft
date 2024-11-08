@@ -1,6 +1,4 @@
 import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
-// import BN from 'bn.js'
-
 import {encodeOffChainContent, decodeOffChainContent} from "./NftContent";
 
 export type RoyaltyParams = {
@@ -11,7 +9,6 @@ export type RoyaltyParams = {
 
 export type NftCollectionConfig = {
     ownerAddress: Address,
-    // nextItemIndex: number | BN
     nextItemIndex: number | bigint
     collectionContent: string
     commonContent: string
@@ -21,8 +18,7 @@ export type NftCollectionConfig = {
 
 export function nftCollectionConfigToCell(config: NftCollectionConfig): Cell {
     let commonContent = beginCell()
-        // .storeString(data.commonContent)
-        .storeBuffer(Buffer.from(config.commonContent))
+        .storeStringTail(config.commonContent)
         .endCell()
 
     let contentCell = beginCell()
@@ -55,7 +51,7 @@ export const Opcodes = {
 
     get_royalty_params: 0x693d3950,
     get_royalty_params_response: 0xa8cb00ad,
-};
+}
 
 export type CollectionMintNftItemInput = {
     passAmount: bigint
@@ -89,8 +85,7 @@ export class NftCollection implements Contract {
     // Get methods
     //
     
-    // async getCollectionData(provider: ContractProvider): Promise<{ nextItemId: number, ownerAddress: Address, collectionContent: string }> {
-    async getCollectionData(provider: ContractProvider) {
+    async getCollectionData(provider: ContractProvider): Promise<{ nextItemId: number, ownerAddress: Address, collectionContent: string }> {
         let res = await provider.get('get_collection_data', [])
      
         let nextItemId = res.stack.readNumber()
