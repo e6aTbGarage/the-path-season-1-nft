@@ -117,7 +117,7 @@ describe('NftCollection', () => {
     })
 
     it('should deploy new nft', async () => {
-        let itemIndex = 0
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
 
         let res = await collection.sendDeployNewNft(deployer.getSender(), {
             passAmount: toNano('0.5'),
@@ -145,16 +145,18 @@ describe('NftCollection', () => {
     })
 
     it('should batch deploy nft\'s', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
         let items: CollectionMintNftItemInput[] = [
             {
                 passAmount: toNano('0.5'),
-                index: 0,
+                index: itemIndex,
                 ownerAddress: randomAddress(),
                 content: 'content_one'
             },
             {
                 passAmount: toNano('0.5'),
-                index: 1,
+                index: itemIndex + 1,
                 ownerAddress: randomAddress(),
                 content: 'content_two'
             },
@@ -190,7 +192,7 @@ describe('NftCollection', () => {
     })
 
     it('should deploy nft only if owner calls', async () => {
-        let itemIndex = 1
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
 
         let res = await collection.sendDeployNewNft(anybody.getSender(), {
             passAmount: toNano('0.5'),
@@ -198,6 +200,34 @@ describe('NftCollection', () => {
             itemOwnerAddress: config.ownerAddress,
             itemContent: 'custom',
         })
+
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+    })
+
+    it('should deploy batch nft only if owner calls', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        let items: CollectionMintNftItemInput[] = [
+            {
+                passAmount: toNano('0.5'),
+                index: itemIndex,
+                ownerAddress: randomAddress(),
+                content: 'content_one'
+            },
+            {
+                passAmount: toNano('0.5'),
+                index: itemIndex + 1,
+                ownerAddress: randomAddress(),
+                content: 'content_two'
+            },
+        ]
+
+        let res = await collection.sendBatchDeployNft(anybody.getSender(), { items })
 
         expect(res.transactions).toHaveTransaction({
             from: anybody.address,
@@ -314,6 +344,74 @@ describe('NftCollection', () => {
         expect(royalty.royaltyBase).toEqual(220)
         expect(royalty.royaltyAddress.toString()).toEqual(royaltyAddress.toString())
     })
+
+    it('should mint after deploy', async () => {
+        let isMintingComplete = await collection.getMintingComleteFlag();
+        expect(isMintingComplete).toEqual(false)
+    })
+    
+    it('should stop mint', async () => {
+        let res = await collection.sendStopMinting(deployer.getSender(), {});
+
+        expect(res.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: collection.address,
+            success: true,
+        });
+
+        let isMintingComplete = await collection.getMintingComleteFlag();
+        expect(isMintingComplete).toEqual(true)
+    })
+    
+    it('should not deploy after stop mint', async () => {
+        await collection.sendStopMinting(deployer.getSender(), {});
+
+        let data = await collection.getCollectionData();
+        let res = await collection.sendDeployNewNft(deployer.getSender(), {
+            passAmount: toNano('0.5'),
+            itemIndex: data.nextItemId,
+            itemOwnerAddress: config.ownerAddress,
+            itemContent: 'test_content'
+        })
+
+        expect(res.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: collection.address,
+            success: false,
+            exitCode: 4666,
+        });
+    })
+    
+    it('should not batch deploy after stop mint', async () => {
+        await collection.sendStopMinting(deployer.getSender(), {});
+
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        let items: CollectionMintNftItemInput[] = [
+            {
+                passAmount: toNano('0.5'),
+                index: itemIndex,
+                ownerAddress: randomAddress(),
+                content: 'content_one'
+            },
+            {
+                passAmount: toNano('0.5'),
+                index: itemIndex + 1,
+                ownerAddress: randomAddress(),
+                content: 'content_two'
+            },
+        ]
+
+        let res = await collection.sendBatchDeployNft(deployer.getSender(), { items })
+
+        expect(res.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: collection.address,
+            success: false,
+            exitCode: 4666,
+        });
+    })
+
 
     // no sbt in this collection
 

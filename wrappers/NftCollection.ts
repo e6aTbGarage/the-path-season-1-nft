@@ -49,6 +49,8 @@ export const Opcodes = {
     collect_balance: 5,
     change_second_owner: 6,
 
+    stop_minting: 666,
+
     get_royalty_params: 0x693d3950,
     get_royalty_params_response: 0xa8cb00ad,
 }
@@ -129,6 +131,11 @@ export class NftCollection implements Contract {
 
         let contentCell = res.stack.readCell()
         return decodeOffChainContent(contentCell)
+    }
+
+    async getMintingComleteFlag(provider: ContractProvider): Promise<boolean> {
+        let res = await provider.get('get_minting_complete_flag', [])
+        return res.stack.readBoolean()
     }
 
     //
@@ -261,6 +268,18 @@ export class NftCollection implements Contract {
                 .storeRef(contentCell)
                 .storeRef(royaltyCell)
                 .endCell()
+        })
+    }
+
+    async sendStopMinting(provider: ContractProvider, via: Sender, opts: { queryID?: number }) {
+        return await provider.internal(via, {
+            value: toNano('1'),
+            bounce: false,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.stop_minting, 32)
+                .storeUint(opts.queryID || 0, 64)
+                .endCell(),
         })
     }
 }
