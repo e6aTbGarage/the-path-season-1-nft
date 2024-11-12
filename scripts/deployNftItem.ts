@@ -17,10 +17,11 @@ export async function run(provider: NetworkProvider, args: string[]) {
     const collectionData = await collection.getCollectionData()
 
     const res = await collection.sendDeployNewNft(provider.sender(), {
-        passAmount: toNano('0.5'),
         itemIndex: collectionData.nextItemId,
-        itemOwnerAddress: provider.sender().address!,
-        itemContent: "public/nft/item-meta.json"
+        itemOwnerAddress: Address.parse("0QDbYiUK03JjvFqqTDVl93lZjhSWE2Y-mqJp2PCxG8E5bvkM"),
+        // itemOwnerAddress: provider.sender().address!,
+        itemContent: "https://s3.pathgame.app/nft/h/1/0369383036959b7ba3e0bfbcb97e05e549e16f9df66412942f7841ca5dede8c7.json"
+        // itemContent: "public/nft/item-meta.json"
     })
 
     ui.write('Waiting for deploy...');

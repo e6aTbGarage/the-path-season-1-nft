@@ -1,25 +1,9 @@
 import { toNano } from '@ton/core';
-import { NftCollection, RoyaltyParams } from '../wrappers/NftCollection';
-import { compile, NetworkProvider } from '@ton/blueprint';
+import { NftCollection } from '../wrappers/NftCollection';
+import { NetworkProvider } from '@ton/blueprint';
 
-export async function run(provider: NetworkProvider, royaltyParams: RoyaltyParams) {
-    const collection = provider.open(
-        NftCollection.createFromConfig(
-            {
-                ownerAddress: provider.sender().address!,
-                nextItemIndex: 0,
-                collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
-                commonContent: "https://s3.pathgame.app/",
-                nftItemCode: await compile('NftItem'),
-                royaltyParams: {
-                    royaltyFactor: 10,
-                    royaltyBase: 10,
-                    royaltyAddress: provider.sender().address!,
-                },
-            },
-            await compile('NftCollection')
-        )
-    );
+export async function run(provider: NetworkProvider) {
+    const collection = provider.open(await NftCollection.createDefault(provider.sender().address!));
 
     if (await provider.isContractDeployed(collection.address)) {
         console.log('Already at:', collection.address)

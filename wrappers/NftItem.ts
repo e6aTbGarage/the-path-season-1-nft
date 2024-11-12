@@ -1,9 +1,14 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
-import { decodeOffChainContent, encodeOffChainContent } from './NftContent';
+import { decodeOffChainContent, decodeOffChainContentWithoutPrefix, encodeOffChainContent, encodeOffChainContentWithoutPrefix } from './NftContent';
 
-export type NftItemConfig = {
+
+export type NftItemConfig = { // Initial data that affects the NFT address
     index: number
     collectionAddress: Address
+}
+export type NftItemParams = { // Custom data that does not affect the NFT address
+    ownerAddress: Address
+    content: string
 }
 
 export type NftItemData = {
@@ -11,7 +16,7 @@ export type NftItemData = {
     index: number
     collectionAddress: Address | null
     ownerAddress: Address | null
-    content: string // Cell | string - cell if onchain
+    content: string
 }
 
 export function nftItemConfigToCell(config: NftItemConfig) {
@@ -81,13 +86,13 @@ export class NftItem implements Contract {
         return new NftItem(contractAddress(workchain, init), init);
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint, opts: { ownerAddress: Address, content: string }) {
+    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint, opts: NftItemParams) {
         return await provider.internal(via, {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeAddress(opts.ownerAddress)
-                .storeRef(encodeOffChainContent(opts.content))
+                .storeRef(encodeOffChainContentWithoutPrefix(opts.content))
                 .endCell(),
         });
     }
@@ -104,7 +109,7 @@ export class NftItem implements Contract {
             index: nftData.readNumber(),
             collectionAddress: nftData.readAddressOpt(),
             ownerAddress: nftData.readAddressOpt(),
-            content: decodeOffChainContent(nftData.readCell()),
+            content: decodeOffChainContentWithoutPrefix(nftData.readCell()),
         }        
     }
 
@@ -159,91 +164,4 @@ export class NftItem implements Contract {
                 .endCell()
         })
     }
-
-    //
-    //  Unused messages
-    //
-
-    // async getEditor(provider: ContractProvider): Promise<Address | null> {
-    //     const nftEditor = (await provider.get('get_editor', [])).stack
-    //     return nftEditor.readAddress()
-    // }
-
-    // async getSbtData(provider: ContractProvider): Promise<NftItemData> {
-    //     return await this.getNftData(provider)
-    // }
-
-    // async getTgNick(provider: ContractProvider): Promise<string> {
-    //     const res = (await provider.get('get_tg_nick', [])).stack
-    //     const data = res.readCell();
-    //     return flattenSnakeCell(data).toString('utf-8');
-    // }
-
-    // async getAuthority(provider: ContractProvider): Promise<Address | null> {
-    //     const stack = (await provider.get('get_authority_address', [])).stack
-    //     return stack.readAddressOpt()
-    // }
-
-    // async getRevokedTime(provider: ContractProvider): Promise<number | null> {
-    //     const stack = (await provider.get('get_revoked_time', [])).stack
-    //     let res = stack.readNumber()
-    //     return (res === 0) ? null : res
-    // }
-
-    // async getEditor(provider: ContractProvider): Promise<Address | null> {
-    //     let res = await provider.get('get_editor', [])
-    //     return res.stack.readAddressOpt()
-    // }
-
-    // async sendEditContent(provider: ContractProvider, via: Sender, params: { queryId?: number, content: Cell}) {
-    //     let contentCell = encodeOffChainContent(params.content)
-
-    //     let royaltyCell = beginCell()
-    //         .storeUint(params.royaltyParams.royaltyFactor, 16)
-    //         .storeUint(params.royaltyParams.royaltyBase, 16)
-    //         .storeAddress(params.royaltyParams.royaltyAddress)
-    //         .endCell()
-
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: beginCell()
-    //         .storeUint(Opcodes.edit_content, 32)
-    //         .storeUint(params.queryId || 0, 64)
-    //         .storeRef(contentCell)
-    //         .storeRef(royaltyCell)
-    //         .endCell()
-    //     })
-    // }
-
-    // async sendTransferEditorship(provider: ContractProvider, via: Sender, params: { queryId?: number, newEditor: Address, responseTo: Address | null, forwardAmount?: bigint }) {
-    //     let msgBody = Queries.transferEditorship(params)
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: msgBody
-    //     })
-    // }
-
-    // async sendDestoy(provider: ContractProvider, via: Sender, params?: { queryId?: number }) {
-    //     let msgBody = Queries.destroy(params || {})
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: msgBody
-    //     })
-    // }
-
-    // async sendRevoke(provider: ContractProvider, via: Sender, params?: { queryId?: number }) {
-    //     let msgBody = Queries.revoke(params || {})
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: msgBody
-    //     })
-    // }
-
-    // async sendTakeExcess(provider: ContractProvider, via: Sender, params?: { queryId?: number }) {
-    //     let msgBody = Queries.takeExcess(params || {})
-    //     return await provider.internal(via, {
-    //         value: toNano('0.05'),
-    //         body: msgBody
-    //     })
-    // }
 }

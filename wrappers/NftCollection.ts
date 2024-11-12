@@ -1,5 +1,6 @@
 import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
-import {encodeOffChainContent, decodeOffChainContent} from "./NftContent";
+import {encodeOffChainContent, decodeOffChainContent, encodeOffChainContentWithoutPrefix, decodeOffChainContentWithoutPrefix} from "./NftContent";
+import { compile } from '@ton/blueprint';
 
 export type RoyaltyParams = {
     royaltyFactor: number
@@ -59,7 +60,7 @@ export type CollectionMintNftItemInput = {
     passAmount: bigint
     index: number
     ownerAddress: Address
-    content: string | Cell
+    content: string 
 }
 
 export class NftCollection implements Contract {
@@ -73,6 +74,27 @@ export class NftCollection implements Contract {
         const data = nftCollectionConfigToCell(config);
         const init = { code, data };
         return new NftCollection(contractAddress(workchain, init), init);
+    }
+    
+    static async createDefault(ownerAddress: Address) {
+        const code = await compile('NftCollection')
+        const data = nftCollectionConfigToCell({
+                ownerAddress: ownerAddress,
+                nextItemIndex: 0,
+                collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
+                commonContent: "https://s3.pathgame.app",
+                nftItemCode: await compile('NftItem'),
+                royaltyParams: {
+                    // if numerator = 11 and denominator = 1000 then royalty share is 11 / 1000 * 100% = 1.1%
+                    royaltyFactor: 11, // numenator
+                    royaltyBase: 1000, // denominator
+                    royaltyAddress: ownerAddress,
+                },
+            })
+
+        const workchain = 0
+        const init = { code, data }
+        return new NftCollection(contractAddress(workchain, init), init)
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
@@ -142,25 +164,21 @@ export class NftCollection implements Contract {
     // Internal messages
     //
 
-    async sendDeployNewNft(provider: ContractProvider, via: Sender, opts: { queryId?: number, passAmount: bigint, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
-        let itemContent = beginCell()
-            .storeStringTail(opts.itemContent)
-            .endCell()
-
+    async sendDeployNewNft(provider: ContractProvider, via: Sender, opts: { queryId?: number, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
         let nftItemMessage = beginCell()
             .storeAddress(opts.itemOwnerAddress)
-            .storeRef(itemContent)
+            .storeRef(encodeOffChainContentWithoutPrefix(opts.itemContent)) // no OFF_CHAIN_CONTENT_PREFIX here because this path will be relative
             .endCell()
 
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.06'), // topping up collection account
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.mint, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.itemIndex, 64)
-                .storeCoins(opts.passAmount)
+                .storeCoins(toNano('0.05')) // payment for NFT release from collection account
                 .storeRef(nftItemMessage)
                 .endCell(),
         })
@@ -174,8 +192,7 @@ export class NftCollection implements Contract {
         class CollectionMintNftItemInputDictionaryValue implements DictionaryValue<CollectionMintNftItemInput> {
             serialize(src: CollectionMintNftItemInput, cell: Builder): void {
                 let nftItemMessage = beginCell();
-                let itemContent = (src.content instanceof Cell) ? src.content : 
-                    beginCell().storeStringTail(src.content).endCell();
+                let itemContent = encodeOffChainContentWithoutPrefix(src.content);
                 nftItemMessage.storeAddress(src.ownerAddress);
                 nftItemMessage.storeRef(itemContent);
                 cell.storeCoins(src.passAmount);
@@ -186,7 +203,7 @@ export class NftCollection implements Contract {
                 const nftItemMessage = cell.loadRef().beginParse();
                 const itemContent = nftItemMessage.loadRef();
                 const ownerAddress = nftItemMessage.loadAddress();
-                const content = itemContent;
+                const content = decodeOffChainContentWithoutPrefix(itemContent);
                 const passAmount = cell.loadCoins();
                 return {
                     index: 0,
@@ -208,6 +225,7 @@ export class NftCollection implements Contract {
         
         return await provider.internal(via, {
             value: toNano('1'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.batch_mint, 32)
                 .storeUint(params.queryId || 0, 64)
@@ -218,7 +236,7 @@ export class NftCollection implements Contract {
 
     async sendChangeOwner(provider: ContractProvider, via: Sender, opts: { queryID?: number; newOwner: Address; }) {
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.05'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -232,7 +250,7 @@ export class NftCollection implements Contract {
     // another way to get royalty
     async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, opts: { queryId?: number; }) {
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.05'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -259,7 +277,7 @@ export class NftCollection implements Contract {
             .endCell()
 
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.05'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
@@ -273,7 +291,7 @@ export class NftCollection implements Contract {
 
     async sendStopMinting(provider: ContractProvider, via: Sender, opts: { queryID?: number }) {
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.05'),
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
