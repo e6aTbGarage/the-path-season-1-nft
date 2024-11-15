@@ -8,9 +8,9 @@ export async function run(provider: NetworkProvider) {
     if (await provider.isContractDeployed(collection.address)) {
         console.log('Already at:', collection.address)
     } else {
-        await collection.sendDeploy(provider.sender(), toNano('0.05'))
+        await collection.sendDeploy(provider.sender())
         await provider.waitForDeploy(collection.address)
     }
 
-    console.log('data:', await collection.getCollectionData())
+    console.log('Collection data:', await collection.getCollectionData())
 }

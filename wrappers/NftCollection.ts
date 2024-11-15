@@ -47,7 +47,7 @@ export const Opcodes = {
     batch_mint: 2,
     change_owner: 3,
     change_content: 4,
-    collect_balance: 5,
+    return_balance: 5,
     change_second_owner: 6,
 
     stop_minting: 666,
@@ -57,7 +57,6 @@ export const Opcodes = {
 }
 
 export type CollectionMintNftItemInput = {
-    passAmount: bigint
     index: number
     ownerAddress: Address
     content: string 
@@ -81,8 +80,8 @@ export class NftCollection implements Contract {
         const data = nftCollectionConfigToCell({
                 ownerAddress: ownerAddress,
                 nextItemIndex: 0,
-                collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
-                commonContent: "https://s3.pathgame.app",
+                collectionContent: "https://s3.pathgame.app/nft/c/1/collection-meta.json",
+                commonContent: "https://s3.pathgame.app/nft/h/1/",
                 nftItemCode: await compile('NftItem'),
                 royaltyParams: {
                     // if numerator = 11 and denominator = 1000 then royalty share is 11 / 1000 * 100% = 1.1%
@@ -97,9 +96,9 @@ export class NftCollection implements Contract {
         return new NftCollection(contractAddress(workchain, init), init)
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
+    async sendDeploy(provider: ContractProvider, via: Sender) {
         return await provider.internal(via, {
-            value,
+            value: toNano('0.05'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Cell.EMPTY,
         })
@@ -164,6 +163,19 @@ export class NftCollection implements Contract {
     // Internal messages
     //
 
+    // another way to get royalty params
+    async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, opts: { queryId?: number; }) {
+        return await provider.internal(via, {
+            value: toNano('0.05'),
+            bounce: false,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.get_royalty_params, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell()
+        })
+    }
+
     async sendDeployNewNft(provider: ContractProvider, via: Sender, opts: { queryId?: number, itemIndex: number, itemOwnerAddress: Address, itemContent: string }) {
         let nftItemMessage = beginCell()
             .storeAddress(opts.itemOwnerAddress)
@@ -171,14 +183,14 @@ export class NftCollection implements Contract {
             .endCell()
 
         return await provider.internal(via, {
-            value: toNano('0.06'), // topping up collection account
+            value: toNano('0.009'), // topping up collection account
             bounce: false,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.mint, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.itemIndex, 64)
-                .storeCoins(toNano('0.05')) // payment for NFT release from collection account
+                .storeCoins(toNano('0.002')) // payment for NFT release from collection account
                 .storeRef(nftItemMessage)
                 .endCell(),
         })
@@ -191,11 +203,12 @@ export class NftCollection implements Contract {
 
         class CollectionMintNftItemInputDictionaryValue implements DictionaryValue<CollectionMintNftItemInput> {
             serialize(src: CollectionMintNftItemInput, cell: Builder): void {
-                let nftItemMessage = beginCell();
-                let itemContent = encodeOffChainContentWithoutPrefix(src.content);
-                nftItemMessage.storeAddress(src.ownerAddress);
-                nftItemMessage.storeRef(itemContent);
-                cell.storeCoins(src.passAmount);
+                let nftItemMessage = beginCell()
+                    .storeAddress(src.ownerAddress)
+                    .storeRef(encodeOffChainContentWithoutPrefix(src.content))
+                    .endCell()
+
+                cell.storeCoins(toNano('0.002')); // payment for NFT release from collection account
                 cell.storeRef(nftItemMessage);
             }
 
@@ -204,12 +217,11 @@ export class NftCollection implements Contract {
                 const itemContent = nftItemMessage.loadRef();
                 const ownerAddress = nftItemMessage.loadAddress();
                 const content = decodeOffChainContentWithoutPrefix(itemContent);
-                const passAmount = cell.loadCoins();
+                cell.loadCoins(); // passAmount 
                 return {
                     index: 0,
                     ownerAddress,
                     content,
-                    passAmount
                 };
             }
         }
@@ -224,7 +236,7 @@ export class NftCollection implements Contract {
             .endCell();
         
         return await provider.internal(via, {
-            value: toNano('1'),
+            value: toNano('0.009') * BigInt(params.items.length),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.batch_mint, 32)
@@ -244,19 +256,6 @@ export class NftCollection implements Contract {
                 .storeUint(opts.queryID || 0, 64)
                 .storeAddress(opts.newOwner)
                 .endCell(),
-        })
-    }
-
-    // another way to get royalty
-    async sendGetRoyaltyParams(provider: ContractProvider, via: Sender, opts: { queryId?: number; }) {
-        return await provider.internal(via, {
-            value: toNano('0.05'),
-            bounce: false,
-            sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell()
-                .storeUint(Opcodes.get_royalty_params, 32)
-                .storeUint(opts.queryId || 0, 64)
-                .endCell()
         })
     }
 
@@ -286,6 +285,31 @@ export class NftCollection implements Contract {
                 .storeRef(contentCell)
                 .storeRef(royaltyCell)
                 .endCell()
+        })
+    }
+
+    async sendReturnBalance(provider: ContractProvider, via: Sender, opts: { queryID?: number }) {
+        return await provider.internal(via, {
+            value: toNano('0.05'),
+            bounce: false,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.return_balance, 32)
+                .storeUint(opts.queryID || 0, 64)
+                .endCell(),
+        })
+    }
+
+    async sendChangeSecondOwner(provider: ContractProvider, via: Sender, opts: { queryID?: number; newSecondOwner: Address; }) {
+        return await provider.internal(via, {
+            value: toNano('0.05'),
+            bounce: false,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.change_second_owner, 32)
+                .storeUint(opts.queryID || 0, 64)
+                .storeAddress(opts.newSecondOwner)
+                .endCell(),
         })
     }
 

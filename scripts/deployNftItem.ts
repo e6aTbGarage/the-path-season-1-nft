@@ -13,15 +13,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 
     const collection = provider.open(NftCollection.createFromAddress(address))
-
     const collectionData = await collection.getCollectionData()
+    const itemOwner = Address.parse(await ui.input('New item owner address'));
 
-    const res = await collection.sendDeployNewNft(provider.sender(), {
+    await collection.sendDeployNewNft(provider.sender(), {
         itemIndex: collectionData.nextItemId,
-        itemOwnerAddress: Address.parse("0QDbYiUK03JjvFqqTDVl93lZjhSWE2Y-mqJp2PCxG8E5bvkM"),
-        // itemOwnerAddress: provider.sender().address!,
-        itemContent: "https://s3.pathgame.app/nft/h/1/0369383036959b7ba3e0bfbcb97e05e549e16f9df66412942f7841ca5dede8c7.json"
-        // itemContent: "public/nft/item-meta.json"
+        itemOwnerAddress: itemOwner,
+        itemContent: "706337d1ed93aa03094f3e7129484097e5adca34d7a316ce3adc62546ee37864.json"
     })
 
     ui.write('Waiting for deploy...');
@@ -36,5 +34,5 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 
     ui.clearActionPrompt();
-    ui.write('Counter increased successfully!');
+    ui.write('Item deployed successfully!');
 }

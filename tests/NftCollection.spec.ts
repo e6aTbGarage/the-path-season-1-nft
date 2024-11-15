@@ -35,9 +35,9 @@ describe('NftCollection', () => {
             },
         }
 
-        collection = blockchain.openContract( NftCollection.createFromConfig(config, code));
+        collection = blockchain.openContract(NftCollection.createFromConfig(config, code));
 
-        const deployResult = await collection.sendDeploy(deployer.getSender(), toNano('0.05'));
+        const deployResult = await collection.sendDeploy(deployer.getSender());
 
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
@@ -103,170 +103,6 @@ describe('NftCollection', () => {
     // Internal messages
     //
 
-    it('should ignore external messages', async () => {
-        try {
-            let res = await blockchain.sendMessage({
-                info: {
-                    type: 'external-in',
-                    dest: collection.address,
-                    importFee: 0n,
-                },
-                init: undefined,
-                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
-            })
-            expect(res.transactions).toHaveTransaction({
-                to: collection.address,
-                success: false,
-            });
-        } catch (e: any) {
-            expect(e.message).toContain('message not accepted');
-        }
-    })
-
-    it('should deploy new nft', async () => {
-        let itemIndex = (await collection.getCollectionData()).nextItemId;
-
-        let res = await collection.sendDeployNewNft(deployer.getSender(), {
-            itemIndex,
-            itemOwnerAddress: config.ownerAddress,
-            itemContent: 'test_content'
-        })
-
-        // Basic nft item data
-        let itemData = beginCell()
-            .storeUint(itemIndex, 64)
-            .storeAddress(collection.address)
-            .endCell()
-
-        console.log('RESULT: ', res)
-
-        expect(res.transactions).toHaveTransaction({
-            from: collection.address,
-            deploy: true,
-            initCode: config.nftItemCode,
-            initData: itemData,
-            success: true,
-        });
-
-        let data = await collection.getCollectionData()
-        expect(data.nextItemId).toEqual(itemIndex + 1)
-    })
-
-    it('should deploy nft only if owner calls', async () => {
-        let itemIndex = (await collection.getCollectionData()).nextItemId;
-
-        let res = await collection.sendDeployNewNft(anybody.getSender(), {
-            itemIndex,
-            itemOwnerAddress: config.ownerAddress,
-            itemContent: 'custom',
-        })
-
-        expect(res.transactions).toHaveTransaction({
-            from: anybody.address,
-            to: collection.address,
-            success: false,
-            exitCode: 401
-        });
-    })
-
-    it('should batch deploy nft\'s', async () => {
-        let itemIndex = (await collection.getCollectionData()).nextItemId;
-
-        let items: CollectionMintNftItemInput[] = [
-            {
-                passAmount: toNano('0.05'),
-                index: itemIndex,
-                ownerAddress: randomAddress(),
-                content: 'content_one'
-            },
-            {
-                passAmount: toNano('0.05'),
-                index: itemIndex + 1,
-                ownerAddress: randomAddress(),
-                content: 'content_two'
-            },
-        ]
-
-        let res = await collection.sendBatchDeployNft(deployer.getSender(), { items })
-
-        let nftItemData1 = beginCell()
-            .storeUint(0, 64)
-            .storeAddress(collection.address)
-            .endCell()
-
-        expect(res.transactions).toHaveTransaction({
-            from: collection.address,
-            deploy: true,
-            initCode: config.nftItemCode,
-            initData: nftItemData1,
-            success: true,
-        });
-
-        let nftItemData2 = beginCell()
-            .storeUint(1, 64)
-            .storeAddress(collection.address)
-            .endCell()
-
-        expect(res.transactions).toHaveTransaction({
-            from: collection.address,
-            deploy: true,
-            initCode: config.nftItemCode,
-            initData: nftItemData2,
-            success: true,
-        });
-    })
-
-    it('should deploy batch nft only if owner calls', async () => {
-        let itemIndex = (await collection.getCollectionData()).nextItemId;
-
-        let items: CollectionMintNftItemInput[] = [
-            {
-                passAmount: toNano('0.05'),
-                index: itemIndex,
-                ownerAddress: randomAddress(),
-                content: 'content_one'
-            },
-            {
-                passAmount: toNano('0.05'),
-                index: itemIndex + 1,
-                ownerAddress: randomAddress(),
-                content: 'content_two'
-            },
-        ]
-
-        let res = await collection.sendBatchDeployNft(anybody.getSender(), { items })
-
-        expect(res.transactions).toHaveTransaction({
-            from: anybody.address,
-            to: collection.address,
-            success: false,
-            exitCode: 401
-        });
-    })
-
-    it('should change owner', async () => {
-        let newOwner = randomAddress()
-
-        let res = await collection.sendChangeOwner(anybody.getSender(), { newOwner })
-        // Should fail if caller is not owner
-        expect(res.transactions).toHaveTransaction({
-            from: anybody.address,
-            to: collection.address,
-            success: false,
-            exitCode: 401
-        });
-
-        res = await collection.sendChangeOwner(deployer.getSender(), { newOwner })
-        expect(res.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: collection.address,
-            success: true
-        });
-
-        let data = await collection.getCollectionData()
-        expect(data.ownerAddress.toString()).toEqual(newOwner.toString())
-    })
-
     it('should send royalty params', async () => {
         const requestQueryId = 1234567;
         let res = await collection.sendGetRoyaltyParams(anybody.getSender(), { queryId: requestQueryId })
@@ -311,6 +147,176 @@ describe('NftCollection', () => {
         expect(royaltyBase).toEqual(config.royaltyParams.royaltyBase)
         expect(royaltyAddress.toString()).toEqual(config.royaltyParams.royaltyAddress.toString())
     })
+
+    it('should ignore external messages', async () => {
+        try {
+            let res = await blockchain.sendMessage({
+                info: {
+                    type: 'external-in',
+                    dest: collection.address,
+                    importFee: 0n,
+                },
+                init: undefined,
+                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
+            })
+            expect(res.transactions).toHaveTransaction({
+                to: collection.address,
+                success: false,
+            });
+        } catch (e: any) {
+            expect(e.message).toContain('message not accepted');
+        }
+    })
+
+    it('should deploy new nft', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        let res = await collection.sendDeployNewNft(deployer.getSender(), {
+            itemIndex,
+            itemOwnerAddress: config.ownerAddress,
+            itemContent: 'd41d8cd98f00b204e9800998ecf8427e.json' // md5 from empty string
+        })
+
+        // Basic nft item data
+        let itemData = beginCell()
+            .storeUint(itemIndex, 64)
+            .storeAddress(collection.address)
+            .endCell()
+
+        expect(res.transactions).toHaveTransaction({
+            from: collection.address,
+            deploy: true,
+            initCode: config.nftItemCode,
+            initData: itemData,
+            success: true,
+        });
+
+        let data = await collection.getCollectionData()
+        expect(data.nextItemId).toEqual(itemIndex + 1)
+    })
+
+    it('should deploy a lot of new nft', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        for (let i = 0; i < 250; i++)
+        {
+            let res = await collection.sendDeployNewNft(deployer.getSender(), {
+                itemIndex,
+                itemOwnerAddress: config.ownerAddress,
+                itemContent: 'd41d8cd98f00b204e9800998ecf8427e.json' // md5 from empty string
+            })
+
+            expect(res.transactions).toHaveTransaction({
+                from: collection.address,
+                deploy: true,
+                success: true,
+            });
+
+            itemIndex = itemIndex + 1
+        }
+
+        let data = await collection.getCollectionData()
+        expect(data.nextItemId).toEqual(itemIndex)
+    })
+
+    it('should deploy nft only if owner calls', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        let res = await collection.sendDeployNewNft(anybody.getSender(), {
+            itemIndex,
+            itemOwnerAddress: config.ownerAddress,
+            itemContent: 'd41d8cd98f00b204e9800998ecf8427e.json' // md5 from empty string
+        })
+
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+    })
+
+    it('should batch deploy nft\'s', async () => {
+        let nextItemIndex = (await collection.getCollectionData()).nextItemId;
+
+        const items: CollectionMintNftItemInput[] = Array.from({ length: 125 }, (_, i) => ({
+            index: nextItemIndex + i,
+            ownerAddress: randomAddress(),
+            content: 'd41d8cd98f00b204e9800998ecf8427e.json' // md5 from empty string
+        }))
+
+        let res = await collection.sendBatchDeployNft(deployer.getSender(), { items })
+
+        let nftItemData1 = beginCell()
+            .storeUint(0, 64) // itemIndex
+            .storeAddress(collection.address)
+            .endCell()
+
+        expect(res.transactions).toHaveTransaction({
+            from: collection.address,
+            deploy: true,
+            initCode: config.nftItemCode,
+            initData: nftItemData1,
+            success: true,
+        });
+
+        let nftItemData2 = beginCell()
+            .storeUint(1, 64) // itemIndex
+            .storeAddress(collection.address)
+            .endCell()
+
+        expect(res.transactions).toHaveTransaction({
+            from: collection.address,
+            deploy: true,
+            initCode: config.nftItemCode,
+            initData: nftItemData2,
+            success: true,
+        });
+    })
+
+    it('should deploy batch nft only if owner calls', async () => {
+        let itemIndex = (await collection.getCollectionData()).nextItemId;
+
+        let items: CollectionMintNftItemInput[] = [
+            {
+                index: itemIndex,
+                ownerAddress: randomAddress(),
+                content: 'content_one'
+            },
+        ]
+
+        let res = await collection.sendBatchDeployNft(anybody.getSender(), { items })
+
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+    })
+
+    it('should change owner', async () => {
+        let newOwner = randomAddress()
+
+        let res = await collection.sendChangeOwner(anybody.getSender(), { newOwner })
+        // Should fail if caller is not owner
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+
+        res = await collection.sendChangeOwner(deployer.getSender(), { newOwner })
+        expect(res.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: collection.address,
+            success: true
+        });
+
+        let data = await collection.getCollectionData()
+        expect(data.ownerAddress.toString()).toEqual(newOwner.toString())
+    })
     
     it('should edit content', async () => {
         let royaltyAddress = randomAddress()
@@ -352,12 +358,83 @@ describe('NftCollection', () => {
         expect(royalty.royaltyAddress.toString()).toEqual(royaltyAddress.toString())
     })
 
-    it('should mint after deploy', async () => {
-        let isMintingComplete = await collection.getMintingComleteFlag();
-        expect(isMintingComplete).toEqual(false)
+    it('should return balance', async () => {
+        let res = await collection.sendReturnBalance(anybody.getSender(), {})
+        // Should fail if caller is not owner
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+
+        res = await deployer.send({
+            to: collection.address,
+            value: toNano("10"),
+        })
+        expect(res.transactions).toHaveTransaction({ from: deployer.address, to: collection.address, success: true });
+
+        res = await collection.sendReturnBalance(deployer.getSender(), { })
+        expect(res.transactions).toHaveTransaction({ 
+            from: deployer.address, 
+            to: collection.address, 
+            success: true,
+        });
+        expect(res.transactions).toHaveTransaction({ 
+            from: collection.address, 
+            to: deployer.address, 
+            success: true,
+            value: (x) => (x ? toNano(9) <= x && x <= toNano(11) : false),
+        });
+    })
+    
+    it('should change second owner', async () => {
+        let secondOwner = await blockchain.treasury('add_owner');
+
+        let res = await collection.sendChangeSecondOwner(anybody.getSender(), { newSecondOwner: secondOwner.address })
+        // Should fail if caller is not owner
+        expect(res.transactions).toHaveTransaction({
+            from: anybody.address,
+            to: collection.address,
+            success: false,
+            exitCode: 401
+        });
+
+        res = await collection.sendChangeSecondOwner(deployer.getSender(), { newSecondOwner: secondOwner.address })
+        expect(res.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: collection.address,
+            success: true
+        });
+
+        // main owner still same
+        let data = await collection.getCollectionData()
+        expect(data.ownerAddress.toString()).toEqual(deployer.address.toString())
+
+        // check rights
+        res = await collection.sendDeployNewNft(secondOwner.getSender(), {
+            itemIndex: data.nextItemId,
+            itemOwnerAddress: anybody.address,
+            itemContent: 'd41d8cd98f00b204e9800998ecf8427e.json' // md5 from empty string
+        })
+        expect(res.transactions).toHaveTransaction({
+            from: secondOwner.address,
+            success: true,
+        });
+
+        // second owner can't become main
+        res = await collection.sendChangeOwner(secondOwner.getSender(), { newOwner: secondOwner.address })
+        expect(res.transactions).toHaveTransaction({
+            from: secondOwner.address,
+            success: false,
+            exitCode: 4001
+        });
     })
     
     it('should stop mint', async () => {
+        let isMintingComplete = await collection.getMintingComleteFlag();
+        expect(isMintingComplete).toEqual(false)
+        
         let res = await collection.sendStopMinting(deployer.getSender(), {});
 
         expect(res.transactions).toHaveTransaction({
@@ -366,7 +443,7 @@ describe('NftCollection', () => {
             success: true,
         });
 
-        let isMintingComplete = await collection.getMintingComleteFlag();
+        isMintingComplete = await collection.getMintingComleteFlag();
         expect(isMintingComplete).toEqual(true)
     })
     
@@ -395,16 +472,9 @@ describe('NftCollection', () => {
 
         let items: CollectionMintNftItemInput[] = [
             {
-                passAmount: toNano('0.5'),
                 index: itemIndex,
                 ownerAddress: randomAddress(),
                 content: 'content_one'
-            },
-            {
-                passAmount: toNano('0.5'),
-                index: itemIndex + 1,
-                ownerAddress: randomAddress(),
-                content: 'content_two'
             },
         ]
 

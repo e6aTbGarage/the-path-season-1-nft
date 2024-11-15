@@ -26,4 +26,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
         ui.write(`Item{${i}}: ${JSON.stringify(itemContent) }`)
     }
+
+    ui.write(`No more items`)
 }

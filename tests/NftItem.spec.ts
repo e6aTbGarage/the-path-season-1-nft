@@ -1,5 +1,5 @@
 import {Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract} from '@ton/sandbox';
-import {Cell, toNano, Address, beginCell} from '@ton/core';
+import {Cell, toNano, Address, beginCell, SendMode} from '@ton/core';
 import "@ton/test-utils";
 
 import { compile } from '@ton/blueprint';
@@ -35,7 +35,7 @@ describe('NftItem (in-collection mode)', () => {
         }
 
         token = blockchain.openContract(NftItem.createFromConfig(config, code));
-        const deployResult = await token.sendDeploy(collection.getSender(), toNano('0.05'), params);
+        const deployResult = await token.sendDeploy(collection.getSender(), params);
   
         expect(deployResult.transactions).toHaveTransaction({
             from: collection.address,
@@ -65,7 +65,7 @@ describe('NftItem (in-collection mode)', () => {
         }
         let custom_token = blockchain.openContract(NftItem.createFromConfig(custom_config, code));
 
-        const deployResult = await custom_token.sendDeploy(anybody.getSender(), toNano('0.05'), params);
+        const deployResult = await custom_token.sendDeploy(anybody.getSender(), params);
   
         expect(deployResult.transactions).toHaveTransaction({
             from: anybody.address,
@@ -101,7 +101,7 @@ describe('NftItem (in-collection mode)', () => {
 
         let newOwner = await blockchain.treasury('new_onwer');
 
-        let transferResult = await token.sendTransfer(owner.getSender(), toNano('1'), { newOwner: newOwner.address, })
+        let transferResult = await token.sendTransfer(owner.getSender(), { newOwner: newOwner.address, })
 
         expect(transferResult.transactions).toHaveTransaction({
             from: owner.address,
@@ -112,14 +112,14 @@ describe('NftItem (in-collection mode)', () => {
         expect((await token.getNftData()).ownerAddress?.toString()).toEqual(newOwner.address.toString())
 
         // return back
-        await token.sendTransfer(newOwner.getSender(), toNano('1'), { newOwner: owner.address, })
+        await token.sendTransfer(newOwner.getSender(), { newOwner: owner.address, })
         expect((await token.getNftData()).ownerAddress?.toString()).toEqual(owner.address.toString())
     })
 
     it('should not transfer by anybody', async () => {
         let newOwner = await blockchain.treasury('new_onwer');
 
-        let transferResult = await token.sendTransfer(anybody.getSender(), toNano('1'), { newOwner: newOwner.address, })
+        let transferResult = await token.sendTransfer(anybody.getSender(), { newOwner: newOwner.address, })
 
         expect(transferResult.transactions).toHaveTransaction({
             from: anybody.address,
@@ -132,7 +132,7 @@ describe('NftItem (in-collection mode)', () => {
     it('should not transfer by collection', async () => {
         let newOwner = await blockchain.treasury('new_onwer');
 
-        let transferResult = await token.sendTransfer(collection.getSender(), toNano('1'), { newOwner: newOwner.address, })
+        let transferResult = await token.sendTransfer(collection.getSender(), { newOwner: newOwner.address, })
 
         expect(transferResult.transactions).toHaveTransaction({
             from: collection.address,

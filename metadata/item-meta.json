@@ -1,20 +1,43 @@
 {
-    "name": "Butcher",
-    "description": "this is real pudge",
-    "image": "https://s3.pathgame.app/public/nft/pudge.png",
-    "content_url": "",
+    "name": "Vile",
+    "description": "A grotesque abomination feeding on fear and despair, emerging from the darkest corners of the swamp.",
+    "image": "https://s3.pathgame.app/heroes/legendary/vile.webp",
     "attributes": [
         {
-            "trait_type": "Talent",
-            "value": "100"
+            "trait_type": "Level",
+            "value": 1
         },
         {
-            "trait_type": "Morale",
-            "value": "101"
+            "trait_type": "Rarity",
+            "value": "Legendary"
         },
         {
-            "trait_type": "Power",
-            "value": "102"
+            "trait_type": "Class",
+            "value": "Mage"
+        },
+        {
+            "trait_type": "Strength",
+            "value": 7
+        },
+        {
+            "trait_type": "Agility",
+            "value": 4
+        },
+        {
+            "trait_type": "Intelligence",
+            "value": 5
+        },
+        {
+            "trait_type": "Charisma",
+            "value": 5
+        },
+        {
+            "trait_type": "Endurance",
+            "value": 6
+        },
+        {
+            "trait_type": "Luck",
+            "value": 8
         }
     ]
 }

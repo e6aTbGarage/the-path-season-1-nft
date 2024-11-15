@@ -86,9 +86,9 @@ export class NftItem implements Contract {
         return new NftItem(contractAddress(workchain, init), init);
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint, opts: NftItemParams) {
+    async sendDeploy(provider: ContractProvider, via: Sender, opts: NftItemParams) {
         return await provider.internal(via, {
-            value,
+            value: toNano('0.002'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeAddress(opts.ownerAddress)
@@ -129,9 +129,9 @@ export class NftItem implements Contract {
     //  Internal messages
     //
 
-    async sendTransfer(provider: ContractProvider, via: Sender, value: bigint, opts: { queryId?: number; newOwner: Address; responseTo?: Address; forwardAmount?: bigint, forwardPayload?: Cell }) {
+    async sendTransfer(provider: ContractProvider, via: Sender, opts: { queryId?: number; newOwner: Address; responseTo?: Address; forwardAmount?: bigint, forwardPayload?: Cell }) {
         return await provider.internal(via, {
-            value,
+            value: toNano('0.05'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.transfer, 32)
