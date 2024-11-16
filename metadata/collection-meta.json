@@ -1,7 +1,15 @@
 {
-    "image": "https://s3.pathgame.app/public/nft/pudge.png",
-    "name": "Ebat NFT collection",
-    "description": "Ebat created collection",
-    "social_links": [ "https://www.dota2.com/hero/pudge" ],
-    "marketplace": "getgems.io"
-  }
+  "name": "The Path - Season 1",
+  "description": "The Path is the premier NFT collection for our expansive Web3 MMO RPG, offering a universe full of adventure and exploration! Customize your heroes with exclusive gear and unique abilities to stand out in the game world. Adopt a Hero, team up with other players, and unlock access to premium in-game content, special events, and exclusive rewards! Join our vibrant community and elevate your gaming experience with a distinctive NFT hero. Visit our official channels for more information and start your legendary journey today!",
+  "image": "https://s3.pathgame.app/nft/c/1/logo.webp",
+  "cover_image": "https://s3.pathgame.app/nft/c/1/cover.webp",
+  "external_link": "https://pathgame.app",
+  "social_links": [
+    "https://t.me/discoverthepath",
+    "https://x.com/ThePath1337",
+    "https://instagram.com/discoverthepath",
+    "https://facebook.com/people/The-Path/61563598798773/",
+    "https://youtube.com/@discoverthepathgame"
+  ],
+  "marketplace": "getgems.io"
+}

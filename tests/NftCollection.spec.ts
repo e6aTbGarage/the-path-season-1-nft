@@ -99,6 +99,16 @@ describe('NftCollection', () => {
         expect(res).toEqual("https://s3.pathgame.app/public/nft/item-meta.json")
     })
 
+    it('should return second owner', async () => {
+        let res = await collection.getSecondOwnerAddress();
+        expect(res.toString()).toEqual(deployer.address.toString())
+    })
+
+    it('should return mint compelte flag', async () => {
+        let isMintingComplete = await collection.getMintingComleteFlag();
+        expect(isMintingComplete).toEqual(false)
+    })
+
     //
     // Internal messages
     //
@@ -146,26 +156,6 @@ describe('NftCollection', () => {
         expect(royaltyFactor).toEqual(config.royaltyParams.royaltyFactor)
         expect(royaltyBase).toEqual(config.royaltyParams.royaltyBase)
         expect(royaltyAddress.toString()).toEqual(config.royaltyParams.royaltyAddress.toString())
-    })
-
-    it('should ignore external messages', async () => {
-        try {
-            let res = await blockchain.sendMessage({
-                info: {
-                    type: 'external-in',
-                    dest: collection.address,
-                    importFee: 0n,
-                },
-                init: undefined,
-                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
-            })
-            expect(res.transactions).toHaveTransaction({
-                to: collection.address,
-                success: false,
-            });
-        } catch (e: any) {
-            expect(e.message).toContain('message not accepted');
-        }
     })
 
     it('should deploy new nft', async () => {
@@ -407,6 +397,9 @@ describe('NftCollection', () => {
             success: true
         });
 
+        let newSecondOwner = await collection.getSecondOwnerAddress();
+        expect(newSecondOwner.toString()).toEqual(secondOwner.address.toString())
+
         // main owner still same
         let data = await collection.getCollectionData()
         expect(data.ownerAddress.toString()).toEqual(deployer.address.toString())
@@ -486,5 +479,29 @@ describe('NftCollection', () => {
             success: false,
             exitCode: 4666,
         });
+    })
+
+    //
+    // External messages
+    //
+
+    it('should ignore external messages', async () => {
+        try {
+            let res = await blockchain.sendMessage({
+                info: {
+                    type: 'external-in',
+                    dest: collection.address,
+                    importFee: 0n,
+                },
+                init: undefined,
+                body: beginCell().storeUint(1, 32).storeUint(2, 32).storeUint(3, 32).endCell()
+            })
+            expect(res.transactions).toHaveTransaction({
+                to: collection.address,
+                success: false,
+            });
+        } catch (e: any) {
+            expect(e.message).toContain('message not accepted');
+        }
     })
 });

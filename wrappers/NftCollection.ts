@@ -127,8 +127,7 @@ export class NftCollection implements Contract {
             value: BigInt(index)
         }])
 
-        let nftAddress = res.stack.readAddress()
-        return nftAddress
+        return res.stack.readAddress()
     }
 
     async getRoyaltyParams(provider: ContractProvider): Promise<RoyaltyParams> {
@@ -152,6 +151,12 @@ export class NftCollection implements Contract {
 
         let contentCell = res.stack.readCell()
         return decodeOffChainContent(contentCell)
+    }
+
+    async getSecondOwnerAddress(provider: ContractProvider): Promise<Address> {
+        let res = await provider.get('get_second_owner_address', [])
+
+        return res.stack.readAddress()
     }
 
     async getMintingComleteFlag(provider: ContractProvider): Promise<boolean> {

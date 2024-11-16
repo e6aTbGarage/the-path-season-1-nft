@@ -71,3 +71,6 @@
 - https://testnet.explorer.tonnft.tools/collection/EQAeKtoHERarrLU-uB3elLqOpaPWTHiTS52KUcJwaoEwyWpm
 - https://testnet.getgems.io/collection/EQAeKtoHERarrLU-uB3elLqOpaPWTHiTS52KUcJwaoEwyWpm
 - https://testnet.tonviewer.com/EQAeKtoHERarrLU-uB3elLqOpaPWTHiTS52KUcJwaoEwyWpm
+
+## Source proof
+- https://verifier.ton.org/EQCb52THERUp0Ei4lE3oQih0NPzm3Sw-zr4tmaxC4CtWG4Tq
