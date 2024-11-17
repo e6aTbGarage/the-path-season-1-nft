@@ -1,4 +1,4 @@
-# ebat-nft
+# The Path - Season 1 NFT
 
 ## Project structure
 
