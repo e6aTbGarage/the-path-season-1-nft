@@ -1,4 +1,4 @@
-import { Address, toNano } from '@ton/core';
+import { Address } from '@ton/core';
 import { NftCollection } from '../wrappers/NftCollection';
 import { NetworkProvider } from '@ton/blueprint';
 

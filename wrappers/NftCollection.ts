@@ -1,5 +1,5 @@
 import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
-import {encodeOffChainContent, decodeOffChainContent, encodeOffChainContentWithoutPrefix, decodeOffChainContentWithoutPrefix} from "./NftContent";
+import { encodeOffChainContent, decodeOffChainContent, encodeOffChainContentWithoutPrefix, decodeOffChainContentWithoutPrefix } from "./NftContent";
 
 export type RoyaltyParams = {
     royaltyFactor: number

@@ -1,7 +1,6 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
 import { decodeOffChainContentWithoutPrefix, encodeOffChainContentWithoutPrefix } from './NftContent';
 
-
 export type NftItemConfig = { // Initial data that affects the NFT address
     index: number
     collectionAddress: Address

@@ -1,7 +1,5 @@
-import { toNano } from '@ton/core';
 import { NftCollection } from '../wrappers/NftCollection';
 import { compile, NetworkProvider } from '@ton/blueprint';
-import { exit } from 'process';
 
 export async function run(provider: NetworkProvider) {
     const code = await compile('NftCollection');
