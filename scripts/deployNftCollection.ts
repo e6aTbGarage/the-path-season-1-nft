@@ -1,9 +1,18 @@
 import { toNano } from '@ton/core';
 import { NftCollection } from '../wrappers/NftCollection';
-import { NetworkProvider } from '@ton/blueprint';
+import { compile, NetworkProvider } from '@ton/blueprint';
+import { exit } from 'process';
 
 export async function run(provider: NetworkProvider) {
-    const collection = provider.open(await NftCollection.createDefault(provider.sender().address!));
+    const code = await compile('NftCollection');
+    const itemCode = await compile('NftItem');
+    const config = NftCollection.createDefaultConfig(provider.sender().address!, itemCode)
+
+    const collection = provider.open(await NftCollection.createFromConfig(config, code));
+
+    const approve = await provider.ui().input(`Approve deploy to  ${collection.address.toString()}: y/n`);
+    if (approve.toLowerCase() !== 'y')
+        throw new Error("Cancel")
 
     if (await provider.isContractDeployed(collection.address)) {
         console.log('Already at:', collection.address)

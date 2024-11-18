@@ -1,6 +1,5 @@
 import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, toNano } from '@ton/core';
 import {encodeOffChainContent, decodeOffChainContent, encodeOffChainContentWithoutPrefix, decodeOffChainContentWithoutPrefix} from "./NftContent";
-import { compile } from '@ton/blueprint';
 
 export type RoyaltyParams = {
     royaltyFactor: number
@@ -18,13 +17,9 @@ export type NftCollectionConfig = {
 }
 
 export function nftCollectionConfigToCell(config: NftCollectionConfig): Cell {
-    let commonContent = beginCell()
-        .storeStringTail(config.commonContent)
-        .endCell()
-
     let contentCell = beginCell()
         .storeRef(encodeOffChainContent(config.collectionContent))
-        .storeRef(commonContent)
+        .storeRef(encodeOffChainContentWithoutPrefix(config.commonContent))
         .endCell()
 
     let royaltyCell = beginCell()
@@ -64,6 +59,22 @@ export type CollectionMintNftItemInput = {
 
 export class NftCollection implements Contract {
     constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
+    
+    static createDefaultConfig(ownerAddress: Address, itemCode: Cell): NftCollectionConfig {
+        return {
+            ownerAddress: ownerAddress,
+            nextItemIndex: 0,
+            collectionContent: "https://s3.pathgame.app/nft/c/2/metadata.json",
+            commonContent: "https://s3.pathgame.app/nft/i/1/",
+            nftItemCode: itemCode,
+            royaltyParams: {
+                // if numerator = 11 and denominator = 1000 then royalty share is 11 / 1000 * 100% = 1.1%
+                royaltyFactor: 1, // numenator
+                royaltyBase: 20, // denominator
+                royaltyAddress: ownerAddress,
+            },
+        }
+    }
 
     static createFromAddress(address: Address) {
         return new NftCollection(address);
@@ -74,31 +85,10 @@ export class NftCollection implements Contract {
         const init = { code, data };
         return new NftCollection(contractAddress(workchain, init), init);
     }
-    
-    static async createDefault(ownerAddress: Address) {
-        const code = await compile('NftCollection')
-        const data = nftCollectionConfigToCell({
-                ownerAddress: ownerAddress,
-                nextItemIndex: 0,
-                collectionContent: "https://s3.pathgame.app/nft/c/1/collection-meta.json",
-                commonContent: "https://s3.pathgame.app/nft/h/1/",
-                nftItemCode: await compile('NftItem'),
-                royaltyParams: {
-                    // if numerator = 11 and denominator = 1000 then royalty share is 11 / 1000 * 100% = 1.1%
-                    royaltyFactor: 11, // numenator
-                    royaltyBase: 1000, // denominator
-                    royaltyAddress: ownerAddress,
-                },
-            })
-
-        const workchain = 0
-        const init = { code, data }
-        return new NftCollection(contractAddress(workchain, init), init)
-    }
 
     async sendDeploy(provider: ContractProvider, via: Sender) {
         return await provider.internal(via, {
-            value: toNano('0.05'),
+            value: toNano('0.5'),
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: Cell.EMPTY,
         })
@@ -265,19 +255,15 @@ export class NftCollection implements Contract {
     }
 
     async sendEditContent(provider: ContractProvider, via: Sender, opts: { queryId?: number, collectionContent: string, commonContent: string,  royaltyParams: RoyaltyParams  }) {
+        let contentCell = beginCell()
+            .storeRef(encodeOffChainContent(opts.collectionContent))
+            .storeRef(encodeOffChainContentWithoutPrefix(opts.commonContent))
+            .endCell()
+
         let royaltyCell = beginCell()
             .storeUint(opts.royaltyParams.royaltyFactor, 16)
             .storeUint(opts.royaltyParams.royaltyBase, 16)
             .storeAddress(opts.royaltyParams.royaltyAddress)
-            .endCell()
-
-        let commonContent = beginCell()
-            .storeBuffer(Buffer.from(opts.commonContent))
-            .endCell()
-
-        let contentCell = beginCell()
-            .storeRef(encodeOffChainContent(opts.collectionContent))
-            .storeRef(commonContent)
             .endCell()
 
         return await provider.internal(via, {

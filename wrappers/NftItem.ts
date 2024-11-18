@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
-import { decodeOffChainContent, decodeOffChainContentWithoutPrefix, encodeOffChainContent, encodeOffChainContentWithoutPrefix } from './NftContent';
+import { decodeOffChainContentWithoutPrefix, encodeOffChainContentWithoutPrefix } from './NftContent';
 
 
 export type NftItemConfig = { // Initial data that affects the NFT address
@@ -36,37 +36,6 @@ export const Opcodes = {
     transfer_editorship: 0x1c04412a
 }
 
-export type RoyaltyParams = {
-    royaltyFactor: number // numerator
-    royaltyBase: number // denominator
-    royaltyAddress: Address
-}
-
-export type NftSingleData = {
-    ownerAddress: Address
-    editorAddress: Address
-    content: string
-    royaltyParams: RoyaltyParams
-}
-
-export function nftSingleDataToCell(data: NftSingleData) {
-    let contentCell = encodeOffChainContent(data.content)
-
-    let royaltyCell = beginCell()
-        .storeUint(data.royaltyParams.royaltyFactor, 16)
-        .storeUint(data.royaltyParams.royaltyBase, 16)
-        .storeAddress(data.royaltyParams.royaltyAddress)
-        .endCell()
-
-    return beginCell()
-        .storeAddress(data.ownerAddress)
-        .storeAddress(data.editorAddress)
-        .storeRef(contentCell)
-        .storeRef(royaltyCell)
-        .endCell()
-
-}
-
 export class NftItem implements Contract {
     constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
 
@@ -76,12 +45,6 @@ export class NftItem implements Contract {
 
     static createFromConfig(config: NftItemConfig, code: Cell, workchain = 0) {
         const data = nftItemConfigToCell(config);
-        const init = { code, data };
-        return new NftItem(contractAddress(workchain, init), init);
-    }
-
-    static createSingleFromConfig(config: NftSingleData, code: Cell, workchain = 0) {
-        const data = nftSingleDataToCell(config);
         const init = { code, data };
         return new NftItem(contractAddress(workchain, init), init);
     }
@@ -111,18 +74,6 @@ export class NftItem implements Contract {
             ownerAddress: nftData.readAddressOpt(),
             content: decodeOffChainContentWithoutPrefix(nftData.readCell()),
         }        
-    }
-
-    async getRoyaltyParams(provider: ContractProvider): Promise<RoyaltyParams | null> {
-        const nftRoyalty = (await provider.get('royalty_params', [])).stack
-
-        let [royaltyFactor, royaltyBase, royaltyAddress] = [nftRoyalty.readNumber(), nftRoyalty.readNumber(), nftRoyalty.readAddress() ]
-
-        return {
-            royaltyFactor: royaltyFactor,
-            royaltyBase: royaltyBase,
-            royaltyAddress: royaltyAddress,
-        }
     }
 
     //

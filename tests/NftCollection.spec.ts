@@ -22,19 +22,7 @@ describe('NftCollection', () => {
 
         code = await compile('NftCollection');
         itemCode = await compile('NftItem');
-        config = {
-            ownerAddress: deployer.address,
-            nextItemIndex: 0,
-            collectionContent: "https://s3.pathgame.app/public/nft/collection-meta.json",
-            commonContent: "https://s3.pathgame.app/",
-            nftItemCode: itemCode,
-            royaltyParams: {
-                royaltyFactor: 1000,
-                royaltyBase: 10,
-                royaltyAddress: deployer.address,
-            },
-        }
-
+        config = NftCollection.createDefaultConfig(deployer.address, itemCode)
         collection = blockchain.openContract(NftCollection.createFromConfig(config, code));
 
         const deployResult = await collection.sendDeploy(deployer.getSender());
@@ -66,7 +54,7 @@ describe('NftCollection', () => {
         let res = await collection.getCollectionData()
 
         expect(res.nextItemId).toEqual(0)
-        expect(res.collectionContent).toEqual("https://s3.pathgame.app/public/nft/collection-meta.json")
+        expect(res.collectionContent).toEqual("https://s3.pathgame.app/nft/c/2/metadata.json")
         expect(res.ownerAddress.toString()).toEqual(config.ownerAddress.toString())
     })
     
@@ -95,8 +83,8 @@ describe('NftCollection', () => {
     })
 
     it('should return nft content', async () => {
-        let res = await collection.getNftContent(0, beginCell().storeStringTail("public/nft/item-meta.json").endCell());
-        expect(res).toEqual("https://s3.pathgame.app/public/nft/item-meta.json")
+        let res = await collection.getNftContent(0, beginCell().storeStringTail("d41d8cd98f00b204e9800998ecf8427e.json").endCell());
+        expect(res).toEqual("https://s3.pathgame.app/nft/i/1/d41d8cd98f00b204e9800998ecf8427e.json")
     })
 
     it('should return second owner', async () => {
